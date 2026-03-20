@@ -26,6 +26,7 @@
             this.newGameBtn = new System.Windows.Forms.Button();
             this.saveBtn = new System.Windows.Forms.Button();
             this.loadBtn = new System.Windows.Forms.Button();
+            this.flowLayoutPanel1 = new System.Windows.Forms.FlowLayoutPanel();
             this.SuspendLayout();
             // 
             // newGameBtn
@@ -34,7 +35,7 @@
             this.newGameBtn.Dock = System.Windows.Forms.DockStyle.Top;
             this.newGameBtn.Location = new System.Drawing.Point(0, 0);
             this.newGameBtn.Name = "newGameBtn";
-            this.newGameBtn.Size = new System.Drawing.Size(231, 40);
+            this.newGameBtn.Size = new System.Drawing.Size(326, 40);
             this.newGameBtn.TabIndex = 0;
             this.newGameBtn.Text = "Nouvelle Partie";
             this.newGameBtn.UseVisualStyleBackColor = true;
@@ -46,7 +47,7 @@
             this.saveBtn.Dock = System.Windows.Forms.DockStyle.Top;
             this.saveBtn.Location = new System.Drawing.Point(0, 40);
             this.saveBtn.Name = "saveBtn";
-            this.saveBtn.Size = new System.Drawing.Size(231, 40);
+            this.saveBtn.Size = new System.Drawing.Size(326, 40);
             this.saveBtn.TabIndex = 1;
             this.saveBtn.Text = "Sauvegarder";
             this.saveBtn.UseVisualStyleBackColor = true;
@@ -57,20 +58,30 @@
             this.loadBtn.Dock = System.Windows.Forms.DockStyle.Top;
             this.loadBtn.Location = new System.Drawing.Point(0, 80);
             this.loadBtn.Name = "loadBtn";
-            this.loadBtn.Size = new System.Drawing.Size(231, 40);
+            this.loadBtn.Size = new System.Drawing.Size(326, 40);
             this.loadBtn.TabIndex = 2;
             this.loadBtn.Text = "Charger";
             this.loadBtn.UseVisualStyleBackColor = true;
+            // 
+            // flowLayoutPanel1
+            // 
+            this.flowLayoutPanel1.Dock = System.Windows.Forms.DockStyle.Bottom;
+            this.flowLayoutPanel1.FlowDirection = System.Windows.Forms.FlowDirection.TopDown;
+            this.flowLayoutPanel1.Location = new System.Drawing.Point(0, 417);
+            this.flowLayoutPanel1.Name = "flowLayoutPanel1";
+            this.flowLayoutPanel1.Size = new System.Drawing.Size(326, 288);
+            this.flowLayoutPanel1.TabIndex = 3;
             // 
             // MenuPanel
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
+            this.Controls.Add(this.flowLayoutPanel1);
             this.Controls.Add(this.loadBtn);
             this.Controls.Add(this.saveBtn);
             this.Controls.Add(this.newGameBtn);
             this.Name = "MenuPanel";
-            this.Size = new System.Drawing.Size(231, 705);
+            this.Size = new System.Drawing.Size(326, 705);
             this.ResumeLayout(false);
             this.PerformLayout();
 
@@ -81,5 +92,6 @@
         private System.Windows.Forms.Button newGameBtn;
         private System.Windows.Forms.Button saveBtn;
         private System.Windows.Forms.Button loadBtn;
+        private System.Windows.Forms.FlowLayoutPanel flowLayoutPanel1;
     }
 }

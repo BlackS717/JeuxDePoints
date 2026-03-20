@@ -7,9 +7,9 @@
 
     internal static class GameRule {
         // Game configuration
-        public const int TOTAL_POINTS_IN_LINE = 5;
-        public const int TOTAL_POINTS_PER_LINE = 1;
-        public const int NUMBER_OF_PLAYERS = 2;
+        public const int TOTAL_POINTS_IN_LINE = 5; // ok
+        public const int TOTAL_POINTS_PER_LINE = 1; // ok
+        public const int NUMBER_OF_PLAYERS = 2; // ok
 
         // Gameplay behavior
         // general behavior
@@ -19,6 +19,11 @@
         public const bool CAN_USE_POINTS_IN_LINES = true; // ok
         public const bool CAN_CUT_THROUGH_OPPONENT_POINTS = false; // ok
         public const bool CAN_CUT_THROUGH_OWN_POINTS = true; // ok
+
+        // if true
+        // start the chain from the longest chain of points and only take the remaining points from the shorter chain
+        // else, start from the shorter chain and take the remaining points from the longest chain
+        public const bool CONNECT_TO_LONGEST_CHAIN = false;
 
         // Cannon behavior
         public const bool LINE_POINTS_ARE_IMMUNE_TO_OPPONENT_CANNON = true;

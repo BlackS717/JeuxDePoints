@@ -14,6 +14,16 @@ namespace JeuxDePoints {
         private const int DRAWING_OFFSET_Y = 20;
 
         private const int POINT_RADIUS = 17;
+        private const int LINE_THICKNESS = 3;
+
+        private Brush player1Brush = Brushes.Red;
+        private Brush player2Brush = Brushes.Green;
+
+        private Color gridColor = Color.FromArgb(128, Color.Gray);
+
+        private Color player1Color = Color.Red; // default, will be set to match player1Brush in constructor
+        private Color player2Color = Color.LightBlue; // default, will be set to match player2Brush in constructor
+
 
         private bool PLACE_POINT_AT_INTERSECTION = true; // if true, points are drawn at grid intersections, otherwise in cell centers
 
@@ -28,6 +38,12 @@ namespace JeuxDePoints {
             this.Dock = DockStyle.Fill;
             this.BackColor = Color.White;
             this.DoubleBuffered = true;
+
+            this.BackColor = Color.Black;
+
+            player1Color = ((SolidBrush)player1Brush).Color;
+            player2Color = ((SolidBrush)player2Brush).Color;
+
 
             this.ResizeRedraw = true;
 
@@ -68,13 +84,20 @@ namespace JeuxDePoints {
 
             for (int i = 0; i <= col; i++) {
                 int x = offsetX + i * CELL_SIZE;
-                g.DrawLine(Pens.Black, x, offsetY, x, offsetY + row * CELL_SIZE);
+
+                using (Pen pen = new Pen(gridColor, 1)) {
+                    g.DrawLine(pen, x, offsetY, x, offsetY + row * CELL_SIZE);
+                    
+                }
             }
 
             // draw horizontal lines
             for (int i = 0; i <= row; i++) {
                 int y = offsetY + i * CELL_SIZE;
-                g.DrawLine(Pens.Black, offsetX, y, offsetX + col * CELL_SIZE, y);
+
+                using (Pen pen = new Pen(gridColor, 1)) {
+                    g.DrawLine(pen, offsetX, y, offsetX + col * CELL_SIZE, y);
+                }
             }
         }
 
@@ -87,11 +110,11 @@ namespace JeuxDePoints {
             int cannonHeight = 60;
             int cannonLeftX = offsetX - cannonWidth - 10;
             int cannonY = offsetY + (row * CELL_SIZE - cannonHeight) / 2;
-            g.FillRectangle(Brushes.Red, cannonLeftX, cannonY, cannonWidth, cannonHeight);
+            g.FillRectangle(player1Brush, cannonLeftX, cannonY, cannonWidth, cannonHeight);
 
             // right cannon
             int cannonRightX = offsetX + col * CELL_SIZE + 10;
-            g.FillRectangle(Brushes.Blue, cannonRightX, cannonY, cannonWidth, cannonHeight);
+            g.FillRectangle(player2Brush, cannonRightX, cannonY, cannonWidth, cannonHeight);
         }
 
         private void drawPoints(Graphics g, int offsetX, int offsetY) {
@@ -103,9 +126,9 @@ namespace JeuxDePoints {
                         Brush brush = Brushes.Gray;
 
                         if(pointValue == (int)CellState.Player1Point || pointValue == (int)CellState.Player1Line) {
-                            brush = Brushes.Red;
+                            brush = player1Brush;
                         } else if(pointValue == (int)CellState.Player2Point || pointValue == (int)CellState.Player2Line) {
-                            brush = Brushes.Blue;
+                            brush = player2Brush;
                         } else {
                             continue; // skip non-point cells
                         }
@@ -150,13 +173,13 @@ namespace JeuxDePoints {
                 Color penColor = Color.Gray;
                 int playerId = line.playerId;
                 if (playerId == 0) {
-                    penColor = Color.Red;
+                    penColor = player1Color;
                 } else if (playerId == 1) {
-                    penColor = Color.Blue;
+                    penColor = player2Color;
                 } else {
                     continue;
                 }
-                using (Pen pen = new Pen(penColor, 2)) {
+                using (Pen pen = new Pen(penColor, LINE_THICKNESS)) {
                     g.DrawLine(pen, x1, y1, x2, y2);
                 }
                 

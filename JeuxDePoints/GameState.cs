@@ -86,23 +86,17 @@ namespace JeuxDePoints {
             int playerPointValue = currentPlayerId == 0 ? (int)CellState.Player1Point : (int)CellState.Player2Point;
             int playerLineValue = currentPlayerId == 0 ? (int)CellState.Player1Line : (int)CellState.Player2Line;
 
-            /* int pointsInLine = 0; // only a single point already part of a line can be used in another line if CAN_USE_POINTS_IN_MULTIPLE_LINES is true
+            int useCount = 0; // the initial point can only be used once to form a line if CAN_USE_POINTS_IN_LINES is false, so we track the number of time it's used in line formation for validation purposes
 
-            // check if the placed point itself is already part of a line, if so we can only use it in another line if CAN_USE_POINTS_IN_MULTIPLE_LINES is true and we haven't already used a line point in this line
-            if (points[GetPointIndex(row, col)] == playerLineValue) {
-                pointsInLine++;
-            }
-
-            */
 
             int deltaRow = axes[0];
             int deltaCol = axes[1];
 
             // scan first direction
-            List<int> consecutivePoint = ScanDirection(deltaRow, deltaCol, row, col, playerPointValue, playerLineValue);
+            List<int> consecutivePoint = ScanDirection(deltaRow, deltaCol, row, col, playerPointValue, playerLineValue, ref useCount);
 
             // scan opposite direction
-            List<int> consecutivePointOpp = ScanDirection(-deltaRow, -deltaCol, row, col, playerPointValue, playerLineValue);
+            List<int> consecutivePointOpp = ScanDirection(-deltaRow, -deltaCol, row, col, playerPointValue, playerLineValue, ref useCount);
 
             int totalPointInAxis = consecutivePoint.Count + consecutivePointOpp.Count - 1; // -1 because the placed point is counted in both directions
 
@@ -124,11 +118,23 @@ namespace JeuxDePoints {
         private List<Line> GetValidLine(List<int> dir1, List<int> dir2) {
             List<Line> validLines = new List<Line>();
 
-            // Ensure dir1 is the longer list
-            if (dir2.Count > dir1.Count) {
-                var temp = dir1;
-                dir1 = dir2;
-                dir2 = temp;
+            // prioritize the longest direction for line formation if the rule CONNECT_TO_LONGEST_CHAIN is true
+            if(GameRule.CONNECT_TO_LONGEST_CHAIN) {
+                // Ensure dir1 is the longer list
+                if (dir2.Count > dir1.Count) {
+                    var temp = dir1;
+                    dir1 = dir2;
+                    dir2 = temp;
+                }
+            } else {
+                // start with the shortest direction unless one direction is already long enough to form a line on its own
+                // in which case we prioritize that direction for line formation
+                // Ensure dir1 is the shorter list
+                if (dir1.Count > dir2.Count) {
+                    var temp = dir1;
+                    dir1 = dir2; 
+                    dir2 = temp;
+                }
             }
 
             // case 1: if the longest direction has enough points to form a line on its own, we draw a line from those points
@@ -214,11 +220,20 @@ namespace JeuxDePoints {
         }
 
 
-        private List<int> ScanDirection(int deltaRow, int deltaCol, int row, int col, int playerPointValue, int playerLineValue) {
+        private List<int> ScanDirection(int deltaRow, int deltaCol, int row, int col, int playerPointValue, int playerLineValue, ref int useCount) {
 
             List<int> pointsInThisDirection = new List<int> {
                 GetPointIndex(row, col) // include the placed point itself
             }; 
+
+            if(!GameRule.CAN_USE_POINTS_IN_LINES) {
+                // if a point in line can't be reused to form another line
+                // we remove the initial point if use count is already 1
+                // (meaning it's already being used in another line formation) to prevent it from being counted again in this line formation
+                if (useCount >= 1) {
+                    pointsInThisDirection.Clear();
+                }
+            }
 
             int r = row + deltaRow;
             int c = col + deltaCol;
@@ -250,7 +265,7 @@ namespace JeuxDePoints {
             }
 
             if (pointsInThisDirection.Count >= GameRule.TOTAL_POINTS_IN_LINE) {
-                //pointsInLine++;
+                useCount++;
             }
 
             return pointsInThisDirection;
