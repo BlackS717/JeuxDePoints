@@ -47,6 +47,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="ActionType.cs" />
+    <Compile Include="Cannon.cs" />
     <Compile Include="CellState.cs" />
     <Compile Include="Controller.cs" />
     <Compile Include="GameForm.cs">

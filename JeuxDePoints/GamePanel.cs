@@ -8,13 +8,19 @@ namespace JeuxDePoints {
         private Controller controller;
 
         private const int CELL_SIZE = 50;
-        private int ROWS = 10;
-        private int COLS = 10;
+        private int ROWS;
+        private int COLS;
         private const int DRAWING_OFFSET_X = 20;
         private const int DRAWING_OFFSET_Y = 20;
 
-        private const int POINT_RADIUS = 17;
-        private const int LINE_THICKNESS = 3;
+        private const int POINT_RADIUS = 14;
+        private const int LINE_THICKNESS = 2;
+
+        private const int CANNON_WIDTH = 20;
+        private const int CANNON_HEIGHT = 60;
+
+
+        private int last_placed_point_index = -1; // to keep track of the last placed point to help the player visualize whose turn it is
 
         private Brush player1Brush = Brushes.Red;
         private Brush player2Brush = Brushes.Green;
@@ -23,6 +29,10 @@ namespace JeuxDePoints {
 
         private Color player1Color = Color.Red; // default, will be set to match player1Brush in constructor
         private Color player2Color = Color.LightBlue; // default, will be set to match player2Brush in constructor
+
+
+        private Color lastPlacedPointHighlightColor = Color.Yellow; // color for highlighting the last placed point
+        private Color highlightColor = Color.GhostWhite; // color for highlighting current player cannon and last placed point
 
 
         private bool PLACE_POINT_AT_INTERSECTION = true; // if true, points are drawn at grid intersections, otherwise in cell centers
@@ -49,7 +59,7 @@ namespace JeuxDePoints {
 
             this.Paint += GamePanel_Paint;
             this.MouseClick += GamePanel_MouseClick;
-            this.controller.GameUpdated += () => this.Invalidate();
+            this.controller.StartNewGameEvent += StartNewGame;
         }
         private void Form_ResizeBegin(object sender, EventArgs e) {
             disablePaint = true;
@@ -67,16 +77,22 @@ namespace JeuxDePoints {
             int offsetX = DRAWING_OFFSET_X + (this.ClientSize.Width - 2 * DRAWING_OFFSET_X - COLS * CELL_SIZE) / 2;
             int offsetY = DRAWING_OFFSET_Y + (this.ClientSize.Height - 2 * DRAWING_OFFSET_Y - ROWS * CELL_SIZE) / 2;
 
-            drawGrid(g, offsetX, offsetY);
+            DrawGrid(g, offsetX, offsetY);
 
-            drawPoints(g, offsetX, offsetY);
+            DrawPoints(g, offsetX, offsetY);
 
-            drawLines(g, offsetX, offsetY);
+            DrawLines(g, offsetX, offsetY);
 
-            drawCannons(g, offsetX, offsetY);
+            DrawCannons(g, offsetX, offsetY);
+
+            DrawLastPlacedPointHighlight(g, offsetX, offsetY);
+
+        //    DrawCurrentPlayerIndicatorPointVersion(g, offsetX, offsetY);
+
+            HighlightCurrentPlayerCannon(g, offsetX, offsetY);
         }
 
-        private void drawGrid(Graphics g, int offsetX, int offsetY) {
+        private void DrawGrid(Graphics g, int offsetX, int offsetY) {
 
             // draw vertical lines
             int col = !PLACE_POINT_AT_INTERSECTION ? COLS + 1 : COLS;
@@ -101,23 +117,22 @@ namespace JeuxDePoints {
             }
         }
 
-        private void drawCannons(Graphics g, int offsetX, int offsetY) {
+        private void DrawCannons(Graphics g, int offsetX, int offsetY) {
             int col = !PLACE_POINT_AT_INTERSECTION ? COLS + 1 : COLS;
             int row = !PLACE_POINT_AT_INTERSECTION ? ROWS + 1 : ROWS;
 
+
             // left cannon
-            int cannonWidth = 20;
-            int cannonHeight = 60;
-            int cannonLeftX = offsetX - cannonWidth - 10;
-            int cannonY = offsetY + (row * CELL_SIZE - cannonHeight) / 2;
-            g.FillRectangle(player1Brush, cannonLeftX, cannonY, cannonWidth, cannonHeight);
+            int cannonLeftX = offsetX - CANNON_WIDTH - 10;
+            int cannonY = offsetY + (row * CELL_SIZE - CANNON_HEIGHT) / 2;
+            g.FillRectangle(player1Brush, cannonLeftX, cannonY, CANNON_WIDTH, CANNON_HEIGHT);
 
             // right cannon
             int cannonRightX = offsetX + col * CELL_SIZE + 10;
-            g.FillRectangle(player2Brush, cannonRightX, cannonY, cannonWidth, cannonHeight);
+            g.FillRectangle(player2Brush, cannonRightX, cannonY, CANNON_WIDTH, CANNON_HEIGHT);
         }
 
-        private void drawPoints(Graphics g, int offsetX, int offsetY) {
+        private void DrawPoints(Graphics g, int offsetX, int offsetY) {
             for (int row = 0; row <= ROWS; row++) {          
                 for (int col = 0; col <= COLS; col++) {      
                     int pointValue = controller.GetPointValue(row, col);
@@ -150,7 +165,7 @@ namespace JeuxDePoints {
             }
         }
 
-        private void drawLines(Graphics g, int offsetX, int offsetY) {
+        private void DrawLines(Graphics g, int offsetX, int offsetY) {
             // optional: draw lines between points if needed
             List<Line> lines = controller.GetLines();
 
@@ -187,8 +202,63 @@ namespace JeuxDePoints {
 
         }
 
+        private void DrawLastPlacedPointHighlight(Graphics g, int offsetX, int offsetY) {
+            if (last_placed_point_index == -1) return;
+            int row = last_placed_point_index / (COLS + 1);
+            int col = last_placed_point_index % (COLS + 1);
+            int x = offsetX + col * CELL_SIZE;
+            int y = offsetY + row * CELL_SIZE;
+            if (!PLACE_POINT_AT_INTERSECTION) {
+                x += CELL_SIZE / 2;
+                y += CELL_SIZE / 2;
+            }
+            x -= POINT_RADIUS; // adjust to center the highlight
+            y -= POINT_RADIUS; // adjust to center the highlight
+            using (Pen pen = new Pen(lastPlacedPointHighlightColor, 2)) {
+                g.DrawEllipse(pen, x, y, POINT_RADIUS * 2, POINT_RADIUS * 2);
+            }
+        }
+
+        private void DrawCurrentPlayerIndicatorPointVersion(Graphics g, int offsetX, int offsetY) {
+            int currentPlayerId = controller.GetCurrentPlayerId();
+            Brush brush = currentPlayerId == 0 ? player1Brush : player2Brush;
+            g.FillEllipse(brush, offsetX - 30, offsetY - 30, 20, 20);
+        }
+
+        private void HighlightCurrentPlayerCannon(Graphics g, int offsetX, int offsetY) {
+            int currentPlayerId = controller.GetCurrentPlayerId();
+            
+
+            int col = !PLACE_POINT_AT_INTERSECTION ? COLS + 1 : COLS;
+            int row = !PLACE_POINT_AT_INTERSECTION ? ROWS + 1 : ROWS;
+
+            using(Pen selPen = new Pen(highlightColor, 3)) {
+                 if (currentPlayerId == 0) {
+                    // left cannon
+                    int cannonLeftX = offsetX - CANNON_WIDTH - 10;
+                    int cannonY = offsetY + (row * CELL_SIZE - CANNON_HEIGHT) / 2;
+                    g.DrawRectangle(selPen, cannonLeftX, cannonY, CANNON_WIDTH, CANNON_HEIGHT);
+                } else {
+                    // right cannon
+                    int cannonRightX = offsetX + col * CELL_SIZE + 10;
+                    int cannonY = offsetY + (row * CELL_SIZE - CANNON_HEIGHT) / 2;
+                    g.DrawRectangle(selPen, cannonRightX, cannonY, CANNON_WIDTH, CANNON_HEIGHT);
+                }
+            }
+        }
+
+        private void StartNewGame() {
+            last_placed_point_index = -1; // reset last placed point index
+            this.Invalidate(); // redraw to clear the board
+        }
+
         private void GamePanel_MouseClick(object sender, MouseEventArgs e) {
-            if(!IsWithinGrid(e.X, e.Y)) {
+            // ignore right clicks or clicks when game is over
+            if (e.Button != MouseButtons.Left || controller.IsGameOver()) {
+                return;
+            }
+
+            if (!IsWithinGrid(e.X, e.Y)) {
                 return; // ignore clicks outside the grid
             } 
 
@@ -201,6 +271,7 @@ namespace JeuxDePoints {
             bool success = controller.HandleAction(ActionType.PlacePoint, controller.GetCurrentPlayerId(), index / (COLS + 1), index % (COLS + 1));
 
             if (success) {
+                last_placed_point_index = index; // update the last placed point index
                 this.Invalidate(); // redraw to show the new point
             }
 

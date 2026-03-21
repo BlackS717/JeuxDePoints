@@ -5,7 +5,8 @@ namespace JeuxDePoints {
     public class Controller {
         private GameState state;
 
-        public event Action GameUpdated;
+        public event Action StartNewGameEvent;
+        
 
         public Controller(GameState state) {
             this.state = state;
@@ -40,11 +41,15 @@ namespace JeuxDePoints {
 
         public int GetPointValue(int row, int col) => state.GetPointValue(row, col);
 
+        public bool IsGameOver() => state.IsGameOver();
+
         public void StartNewGame() {
             state = new GameState(state.GetRows(), state.GetCols());
-            
-            GameUpdated?.Invoke();
+
+            StartNewGameEvent?.Invoke();
         }
+
+
 
     }
 }

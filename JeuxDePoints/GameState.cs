@@ -208,11 +208,11 @@ namespace JeuxDePoints {
             //  check if the new line intersects with any existing line of the opposing player
             bool intersectsOpponentLine = lines.Any(existingLine => existingLine.playerId != currentPlayerId && existingLine.Intersects(line));
 
-            if (intersectsOwnLine && !GameRule.CAN_CUT_THROUGH_OWN_POINTS) {
+            if (intersectsOwnLine && !GameRule.CAN_CUT_THROUGH_OWN_LINE) {
                 return false; // can't cut through own points
             }
 
-            if (intersectsOpponentLine && !GameRule.CAN_CUT_THROUGH_OPPONENT_POINTS) {
+            if (intersectsOpponentLine && !GameRule.CAN_CUT_THROUGH_OPPONENT_LINE) {
                 return false; // can't cut through opponent points
             }
 
@@ -313,6 +313,9 @@ namespace JeuxDePoints {
 
         public void EndGame() {
             isGameOver = true;
+        }
+        public bool IsGameOver() {
+            return isGameOver;
         }
 
         public void ResetGame() {
