@@ -12,7 +12,7 @@ namespace JeuxDePoints {
 
         private Dictionary<int, List<Line>> pointLines; // maps a point index to the lines it is part of, used for efficient line detection and validation
 
-        private int[] cannons;
+        private Cannon[] cannons;
         private int currentPlayerId;
         private int currentTurn;
         private bool isGameOver;
@@ -24,7 +24,7 @@ namespace JeuxDePoints {
             this.rows = rows;
             this.cols = cols;
             points = new int[rows * cols];
-            cannons = new int[GameRule.NUMBER_OF_PLAYERS];
+            cannons = new Cannon[GameRule.NUMBER_OF_PLAYERS];
             moves = new List<Move>();
             lines = new List<Line>();
             playerScores = new int[GameRule.NUMBER_OF_PLAYERS];
@@ -32,6 +32,35 @@ namespace JeuxDePoints {
             currentTurn = 0;
             isGameOver = false;
             pointLines = new Dictionary<int, List<Line>>();
+
+            InitializeCannons();
+        }
+
+        private void InitializeCannons() {
+            int startY = (rows - 1) / 2;
+            for (int i = 0; i < GameRule.NUMBER_OF_PLAYERS; i++) {
+                cannons[i] = new Cannon(i, startY);
+            }
+        }
+
+        public bool MovePlayerCannonToRow(int playerId, int targetRow) {
+            if (playerId < 0 || playerId >= GameRule.NUMBER_OF_PLAYERS) {
+                return false;
+            }
+
+            Cannon cannon = cannons[playerId];
+            if (cannon == null) {
+                return false;
+            }
+
+            int clampedRow = Math.Max(0, Math.Min(rows - 1, targetRow));
+            int deltaY = clampedRow - cannon.GetYPosition();
+
+            if (deltaY == 0) {
+                return true;
+            }
+
+            return cannon.MoveVertically(deltaY, rows);
         }
 
         public bool PlacePoint(int row, int col) {
@@ -43,7 +72,7 @@ namespace JeuxDePoints {
 
             int index = GetPointIndex(row, col);
 
-            int value = currentPlayerId == 0 ? (int) CellState.Player1Point : (int) CellState.Player2Point;
+            int value = currentPlayerId == 0 ? (int)CellState.Player1Point : (int)CellState.Player2Point;
 
             points[index] = value;
 
@@ -59,7 +88,18 @@ namespace JeuxDePoints {
         public bool ShootCannon(int targetRow, int targetCol) {
             // Implement cannon shooting logic here based on game rules
             // This method should check if the player has cannons available, validate the target, and update the game state accordingly
-            return false; // Placeholder return value
+            
+
+            //if(GameRule.SUCCESSFUL_SHOT_CONSUME_TURN) {
+            //    UpdatePlayerTurn();
+            //}
+
+            //if (GameRule.SUCCESSFUL_SHOT_CONSUME_TURN) {
+                UpdatePlayerTurn();
+            //}
+
+
+            return true; // Placeholder return value
         }
 
         private int DetectLines(int row, int col) {
@@ -70,11 +110,11 @@ namespace JeuxDePoints {
                 new int[]{ 1, 1 },   // diagonal \
                 new int[]{ -1, 1 },   // diagonal /
             };
-            
+
             for (int i = 0; i < axes.Length; i++) {
                 linesFormed += ScanAxes(axes[i], row, col);
-                
-                if(!GameRule.CAN_USE_POINTS_IN_LINES && linesFormed > 0) {
+
+                if (!GameRule.CAN_USE_POINTS_IN_LINES && linesFormed > 0) {
                     break;
                 }
             }
@@ -119,7 +159,7 @@ namespace JeuxDePoints {
             List<Line> validLines = new List<Line>();
 
             // prioritize the longest direction for line formation if the rule CONNECT_TO_LONGEST_CHAIN is true
-            if(GameRule.CONNECT_TO_LONGEST_CHAIN) {
+            if (GameRule.CONNECT_TO_LONGEST_CHAIN) {
                 // Ensure dir1 is the longer list
                 if (dir2.Count > dir1.Count) {
                     var temp = dir1;
@@ -132,7 +172,7 @@ namespace JeuxDePoints {
                 // Ensure dir1 is the shorter list
                 if (dir1.Count > dir2.Count) {
                     var temp = dir1;
-                    dir1 = dir2; 
+                    dir1 = dir2;
                     dir2 = temp;
                 }
             }
@@ -158,7 +198,7 @@ namespace JeuxDePoints {
                 int combinedCount = combined.Count;
                 combinedLine = CreateLineFromPoints(combined);
             }
-            
+
             if (primaryLine != null) {
                 validLines.Add(primaryLine);
             }
@@ -224,9 +264,9 @@ namespace JeuxDePoints {
 
             List<int> pointsInThisDirection = new List<int> {
                 GetPointIndex(row, col) // include the placed point itself
-            }; 
+            };
 
-            if(!GameRule.CAN_USE_POINTS_IN_LINES) {
+            if (!GameRule.CAN_USE_POINTS_IN_LINES) {
                 // if a point in line can't be reused to form another line
                 // we remove the initial point if use count is already 1
                 // (meaning it's already being used in another line formation) to prevent it from being counted again in this line formation
@@ -248,7 +288,7 @@ namespace JeuxDePoints {
                     if (GameRule.CAN_USE_POINTS_IN_LINES) {
                         // if it's part of a line, check if the previous point is not part of the same line
                         // if so, we can use this point to form a line
-                        if(!IsPartOfSameLine(pointsInThisDirection.Last(), index)) {
+                        if (!IsPartOfSameLine(pointsInThisDirection.Last(), index)) {
                             pointsInThisDirection.Add(index);
                         } else {
                             break; // if it's part of the same line as the last point we added, we can't use it
@@ -320,7 +360,9 @@ namespace JeuxDePoints {
 
         public void ResetGame() {
             points = new int[rows * cols];
-            cannons = new int[GameRule.NUMBER_OF_PLAYERS];
+            cannons = new Cannon[GameRule.NUMBER_OF_PLAYERS];
+            InitializeCannons();
+
             currentPlayerId = 0;
             currentTurn = 0;
             isGameOver = false;
@@ -378,6 +420,14 @@ namespace JeuxDePoints {
 
         public int GetCols() {
             return cols;
+        }
+
+        public int GetPlayerCannonY(int playerId) {
+            return cannons[playerId] != null ? cannons[playerId].GetYPosition() : -1; // return -1 if the player doesn't have a cannon
+        }
+
+        public Cannon GetPlayerCannon(int playerId) {
+            return cannons[playerId];
         }
     }
 }

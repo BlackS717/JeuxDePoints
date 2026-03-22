@@ -6,7 +6,6 @@ namespace JeuxDePoints {
         private GameState state;
 
         public event Action StartNewGameEvent;
-        
 
         public Controller(GameState state) {
             this.state = state;
@@ -25,6 +24,16 @@ namespace JeuxDePoints {
 
             return result;
         }
+
+        public bool MoveCurrentPlayerCannonToRow(int targetRow) {
+            return state.MovePlayerCannonToRow(state.GetCurrentPlayerId(), targetRow);
+        }
+
+        public bool MovePlayerCannonToRow(int playerId, int targetRow) {
+            return state.MovePlayerCannonToRow(playerId, targetRow);
+        }
+
+        public int GetCannonY(int playerId) => state.GetPlayerCannonY(playerId);
 
         public int GetRows() => state.GetRows();
         public int GetCols() => state.GetCols();
@@ -48,8 +57,5 @@ namespace JeuxDePoints {
 
             StartNewGameEvent?.Invoke();
         }
-
-
-
     }
 }

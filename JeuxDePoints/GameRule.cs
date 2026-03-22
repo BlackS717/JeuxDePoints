@@ -46,6 +46,8 @@
         public const bool RELOADING_USE_TURN = true; // if true, reloading consume the player's turn
         public const bool SUCCESSFUL_SHOT_REFUND_AMMO = false; // if true, player get ammo back if they successfully shoot a point
 
+        public const bool SHOT_ANIMATION_ENABLED = true;
+
         public const int MAX_AMMO = 5; // max ammo a player can have at the start of the game
         public const int AMMO_RELOAD_AMOUNT = 3; // amount of ammo reloaded when player choose to reload
 
