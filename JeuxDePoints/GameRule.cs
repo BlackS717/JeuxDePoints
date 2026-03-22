@@ -33,16 +33,16 @@
         // some points can't be targeted depending on grid size
         // e.g in a 18x18 grid, 1 hit 0 and 9 hit 17
         public const bool CAN_SHOOT_OPPONENT_POINTS = true; // ok
-        public const bool LINE_POINTS_ARE_IMMUNE_TO_OPPONENT_CANNON = false; // ok
+        public const bool LINE_POINTS_ARE_IMMUNE_TO_OPPONENT_CANNON = true; // ok
 
         public const bool CAN_SHOOT_OWN_POINTS = false; // ok
-        public const bool LINE_POINTS_ARE_IMMUNE_TO_OWN_CANNON = false; //ok
+        public const bool LINE_POINTS_ARE_IMMUNE_TO_OWN_CANNON = true; //ok
 
 
         public const bool SUCCESSFUL_SHOT_CONSUME_TURN = true; // ok
         public const bool MISSED_SHOT_CONSUME_TURN = true; // ok
 
-        public const bool INFINITE_AMMO = true; // if true, player have limited ammo // ok
+        public const bool INFINITE_AMMO = false; // if true, player have limited ammo // ok
         public const bool CAN_RELOAD_AMMO = false; // if true, player can reload ammo during their turn // ok
         public const bool RELOADING_USE_TURN = true; // if true, reloading consume the player's turn // ok
         public const bool SUCCESSFUL_SHOT_REFUND_AMMO = true; // if true, player get ammo back if they successfully shoot a point // ok

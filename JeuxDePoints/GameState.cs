@@ -138,7 +138,7 @@ namespace JeuxDePoints {
 
             // PrintBoardState();
 
-            RecordMove(currentPlayerId, ActionType.PlacePoint, index);
+            RecordMove(currentPlayerId, ActionType.PlacePoint, index, null, true);
 
             UpdatePlayerTurn();
 
@@ -164,7 +164,6 @@ namespace JeuxDePoints {
                 UpdatePlayerTurn();
             }
 
-            Console.WriteLine($"Player {playerId + 1} reloads their cannon");
         }
 
         private List<int> GetLinePointIndices(Line line) {
@@ -278,7 +277,7 @@ namespace JeuxDePoints {
             return row >= 0 && row < rows && col >= 0 && col < cols;
         }
 
-        private void RecordMove(int playerId, ActionType actionType, int? pointIndex = null, int? targetIndex = null, bool isSuccessful = false) {
+        internal void RecordMove(int playerId, ActionType actionType, int? pointIndex = null, int? targetIndex = null, bool isSuccessful = false) {
             moves.Add(new Move(playerId, actionType, pointIndex, targetIndex, isSuccessful));
         }
 

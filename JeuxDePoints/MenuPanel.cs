@@ -11,7 +11,12 @@ namespace JeuxDePoints {
 
             this.controller = controller;
 
+            controller.ActionPerformedEvent += RefreshMoveHistoryUi;
+            controller.StartNewGameEvent += RefreshMoveHistoryUi;
+
             ShowGameRules();
+            RefreshPersistenceModeLabel();
+            RefreshMoveHistoryUi();
         }
 
         private void ShowGameRules() {
@@ -63,6 +68,223 @@ namespace JeuxDePoints {
 
         private void newGameBtn_Click(object sender, EventArgs e) {
             controller.StartNewGame();
+        }
+
+        private void saveBtn_Click(object sender, EventArgs e) {
+            string slotName = PromptForSaveName();
+            if (string.IsNullOrWhiteSpace(slotName)) {
+                return;
+            }
+
+            bool saved = controller.SaveCurrentToSlot(slotName);
+            if (!saved) {
+                MessageBox.Show("Unable to save the current game.", "Save", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            MessageBox.Show($"Saved to '{slotName.Trim()}'.", "Save", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+
+        private void loadBtn_Click(object sender, EventArgs e) {
+            string selectedSlot = PromptForLoadSlot();
+            if (string.IsNullOrWhiteSpace(selectedSlot)) {
+                return;
+            }
+
+            bool loaded = controller.LoadFromSlot(selectedSlot);
+            if (!loaded) {
+                MessageBox.Show("Unable to load selected save.", "Load", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            RefreshMoveHistoryUi();
+        }
+
+        private void undoBtn_Click(object sender, EventArgs e) {
+            controller.UndoMove();
+            RefreshMoveHistoryUi();
+        }
+
+        private void redoBtn_Click(object sender, EventArgs e) {
+            controller.RedoMove();
+            RefreshMoveHistoryUi();
+        }
+
+        private void goToStateBtn_Click(object sender, EventArgs e) {
+            int selectedIndex = moveHistoryListBox.SelectedIndex;
+            if (selectedIndex < 0) {
+                return;
+            }
+
+            controller.GoToMoveIndex(selectedIndex);
+            RefreshMoveHistoryUi();
+        }
+
+        private void moveHistoryListBox_SelectedIndexChanged(object sender, EventArgs e) {
+            goToStateBtn.Enabled = moveHistoryListBox.SelectedIndex >= 0;
+        }
+
+        private void RefreshMoveHistoryUi() {
+            moveHistoryListBox.Items.Clear();
+            RefreshPersistenceModeLabel();
+
+            var moves = controller.GetTimelineMoveHistory();
+            int cols = controller.GetCols();
+
+            for (int i = 0; i < moves.Count; i++) {
+                Move move = moves[i];
+
+                int? index = move.PointIndex ?? move.TargetIndex;
+                string targetText = "(n/a)";
+                if (index.HasValue) {
+                    int row = index.Value / cols;
+                    int col = index.Value % cols;
+                    targetText = $"({row},{col})";
+                }
+
+                string status = move.IsSuccessful ? "ok" : "fail";
+                string label = $"{i + 1}. P{move.PlayerId + 1} {move.ActionType} {targetText} [{status}]";
+                moveHistoryListBox.Items.Add(label);
+            }
+
+            int cursor = controller.GetHistoryCursor();
+            if (cursor > 0 && cursor <= moveHistoryListBox.Items.Count) {
+                moveHistoryListBox.SelectedIndex = cursor - 1;
+            }
+
+            undoBtn.Enabled = controller.CanUndoMove();
+            redoBtn.Enabled = controller.CanRedoMove();
+            goToStateBtn.Enabled = moveHistoryListBox.SelectedIndex >= 0;
+        }
+
+        private void RefreshPersistenceModeLabel() {
+            if (controller == null || persistenceModeLabel == null) {
+                return;
+            }
+
+            persistenceModeLabel.Text = controller.GetPersistenceModeLabel();
+            persistenceModeLabel.ForeColor = controller.IsUsingDatabasePersistence()
+                ? Color.FromArgb(22, 101, 52)   // Deep green for database mode
+                : Color.FromArgb(180, 83, 9);   // Amber for memory fallback mode
+        }
+
+        private string PromptForSaveName() {
+            using (Form dialog = new Form()) {
+                dialog.Text = "Save Game";
+                dialog.FormBorderStyle = FormBorderStyle.FixedDialog;
+                dialog.StartPosition = FormStartPosition.CenterParent;
+                dialog.MinimizeBox = false;
+                dialog.MaximizeBox = false;
+                dialog.ClientSize = new Size(340, 120);
+
+                Label label = new Label {
+                    Left = 12,
+                    Top = 12,
+                    Width = 310,
+                    Text = "Save name:"
+                };
+
+                TextBox input = new TextBox {
+                    Left = 12,
+                    Top = 34,
+                    Width = 310
+                };
+
+                Button okButton = new Button {
+                    Text = "OK",
+                    Left = 166,
+                    Width = 75,
+                    Top = 72,
+                    DialogResult = DialogResult.OK
+                };
+
+                Button cancelButton = new Button {
+                    Text = "Cancel",
+                    Left = 247,
+                    Width = 75,
+                    Top = 72,
+                    DialogResult = DialogResult.Cancel
+                };
+
+                dialog.Controls.Add(label);
+                dialog.Controls.Add(input);
+                dialog.Controls.Add(okButton);
+                dialog.Controls.Add(cancelButton);
+                dialog.AcceptButton = okButton;
+                dialog.CancelButton = cancelButton;
+
+                DialogResult result = dialog.ShowDialog(this);
+                return result == DialogResult.OK ? input.Text : string.Empty;
+            }
+        }
+
+        private string PromptForLoadSlot() {
+            var saveSlots = controller.GetSaveSlotNames();
+            if (saveSlots.Count == 0) {
+                MessageBox.Show("No save slots available.", "Load", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return string.Empty;
+            }
+
+            using (Form dialog = new Form()) {
+                dialog.Text = "Load Game";
+                dialog.FormBorderStyle = FormBorderStyle.FixedDialog;
+                dialog.StartPosition = FormStartPosition.CenterParent;
+                dialog.MinimizeBox = false;
+                dialog.MaximizeBox = false;
+                dialog.ClientSize = new Size(340, 280);
+
+                Label label = new Label {
+                    Left = 12,
+                    Top = 12,
+                    Width = 310,
+                    Text = "Select a save slot:"
+                };
+
+                ListBox slotsList = new ListBox {
+                    Left = 12,
+                    Top = 34,
+                    Width = 310,
+                    Height = 190
+                };
+
+                for (int i = 0; i < saveSlots.Count; i++) {
+                    slotsList.Items.Add(saveSlots[i]);
+                }
+
+                if (slotsList.Items.Count > 0) {
+                    slotsList.SelectedIndex = 0;
+                }
+
+                Button okButton = new Button {
+                    Text = "Load",
+                    Left = 166,
+                    Width = 75,
+                    Top = 236,
+                    DialogResult = DialogResult.OK
+                };
+
+                Button cancelButton = new Button {
+                    Text = "Cancel",
+                    Left = 247,
+                    Width = 75,
+                    Top = 236,
+                    DialogResult = DialogResult.Cancel
+                };
+
+                dialog.Controls.Add(label);
+                dialog.Controls.Add(slotsList);
+                dialog.Controls.Add(okButton);
+                dialog.Controls.Add(cancelButton);
+                dialog.AcceptButton = okButton;
+                dialog.CancelButton = cancelButton;
+
+                DialogResult result = dialog.ShowDialog(this);
+                if (result != DialogResult.OK || slotsList.SelectedItem == null) {
+                    return string.Empty;
+                }
+
+                return slotsList.SelectedItem.ToString();
+            }
         }
 
     }

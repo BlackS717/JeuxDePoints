@@ -9,39 +9,48 @@ namespace JeuxDePoints {
         }
 
         public bool ShootCannon(int targetRow, int targetCol) {
-            int currentPlayerId = state.CurrentPlayerId;
+            int actingPlayerId = state.CurrentPlayerId;
+            int targetIndex = state.GetPointIndex(targetRow, targetCol);
 
-            if (!state.CanShootCannon(currentPlayerId)) {
-                Console.WriteLine($"Player {currentPlayerId + 1} can't shoot - no ammo or cannon is on cooldown");
+            if (!state.CanShootCannon(actingPlayerId)) {
+                Console.WriteLine($"Player {actingPlayerId + 1} can't shoot - no ammo or cannon is on cooldown");
 
-                Cannon cannon = state.Cannons[currentPlayerId];
+                Cannon cannon = state.Cannons[actingPlayerId];
                 if (cannon.GetCurrentAmmo() == 0) {
-                    state.ReloadCannon(currentPlayerId);
+                    state.ReloadCannon(actingPlayerId);
                 }
 
+                state.RecordMove(actingPlayerId, ActionType.ShootCannon, null, targetIndex, false);
                 return false;
             }
 
-            state.Cannons[currentPlayerId].Shoot();
+            state.Cannons[actingPlayerId].Shoot();
 
             bool hitAnyPoint = state.IsPoint(targetRow, targetCol);
             if (!hitAnyPoint) {
                 HandleMissedShot();
                 Console.WriteLine(" - no point was hit");
+                state.RecordMove(actingPlayerId, ActionType.ShootCannon, null, targetIndex, false);
                 return false;
             }
 
             if (!GameRule.CAN_SHOOT_OPPONENT_POINTS && !GameRule.CAN_SHOOT_OWN_POINTS) {
                 HandleMissedShot();
                 Console.WriteLine(" - can't shoot points");
+                state.RecordMove(actingPlayerId, ActionType.ShootCannon, null, targetIndex, false);
                 return false;
             }
 
+            bool success;
             if (state.IsLinePoint(targetRow, targetCol)) {
-                return HandleShotAtLine(targetRow, targetCol);
+                success = HandleShotAtLine(targetRow, targetCol);
+            } else {
+                success = HandleShotAtPoint(targetRow, targetCol);
             }
 
-            return HandleShotAtPoint(targetRow, targetCol);
+            state.RecordMove(actingPlayerId, ActionType.ShootCannon, null, targetIndex, success);
+
+            return success;
         }
 
         private bool HandleShotAtPoint(int targetRow, int targetCol) {

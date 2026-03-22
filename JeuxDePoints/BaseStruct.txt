@@ -1,12 +1,29 @@
-﻿Save
-	save_id
-	rows
-	cols
-	rules (or flags)
-History
-	save_id
-	action_index
-	player_id
-	action_type
-	parameters (row/col or power)
-	result (optional)
+﻿psql -h localhost -p 5432 -U postgres -d postgres -c "CREATE DATABASE jeuxdepoints_history;"
+
+psql -h localhost -p 5432 -U postgres -d jeuxdepoints_history -f "c:\Users\Tianiaina\Documents\ITU\S4\Projet\JeuxDePoints\JeuxDePoints\postgresql_history_schema.sql"
+
+psql -h localhost -p 5432 -U postgres -d jeuxdepoints_history -c "\dt"
+
+
+
+
+instruction in case npgsql is not installed, and can't be installed via NuGet Package Manager:
+
+
+Go to Tools > NuGet Package Manager > Package Manager Console.
+Run this:
+Install-Package Npgsql -Version 6.0.11 -ProjectName JeuxDePoints
+
+If 6.0.11 fails in your setup, install this fallback version
+Run:
+Install-Package Npgsql -Version 5.0.18 -ProjectName JeuxDePoints
+
+Rebuild the project
+Build > Rebuild Solution.
+Verify runtime DLL is present
+Check that this file exists after rebuild:
+JeuxDePoints/bin/Debug/Npgsql.dll
+Verify your connection string is still set
+Confirm this key has your values in:
+App.config
+Run the app

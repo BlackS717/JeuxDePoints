@@ -1,4 +1,7 @@
 ﻿using System.Windows.Forms;
+using System;
+using System.Configuration;
+using System.Data;
 
 namespace JeuxDePoints {
     public class GameForm : Form {
@@ -13,9 +16,7 @@ namespace JeuxDePoints {
             this.StartPosition = FormStartPosition.CenterScreen;
 
             ResizeRedraw = true;
-
-
-            this.controller = new Controller(state);
+            this.controller = new Controller(state, CreateDatabaseConnectionFactory());
 
             MenuPanel menu = new MenuPanel(controller);
             GamePanel game = new GamePanel(controller);
@@ -27,6 +28,23 @@ namespace JeuxDePoints {
 
             this.Controls.Add(game);
             this.Controls.Add(menu); // add last so menu is on top of docking
+        }
+
+        private static Func<IDbConnection> CreateDatabaseConnectionFactory() {
+            string connectionString = ConfigurationManager.AppSettings["PostgresConnectionString"];
+            if (string.IsNullOrWhiteSpace(connectionString)) {
+                return null;
+            }
+
+            Type npgsqlConnectionType = Type.GetType("Npgsql.NpgsqlConnection, Npgsql");
+            if (npgsqlConnectionType == null) {
+                return null;
+            }
+
+            return () => {
+                object instance = Activator.CreateInstance(npgsqlConnectionType, connectionString);
+                return (IDbConnection)instance;
+            };
         }
     }
 }
