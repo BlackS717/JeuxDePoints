@@ -11,13 +11,6 @@ namespace JeuxDePoints {
             int rows = 20;
             int cols = 20;
             GameState game = new GameState(rows, cols);
-
-
-
-
-
-
-            
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
             Application.Run(new GameForm(game));

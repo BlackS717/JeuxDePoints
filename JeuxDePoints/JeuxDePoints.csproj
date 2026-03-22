@@ -61,6 +61,8 @@
     </Compile>
     <Compile Include="GameRule.cs" />
     <Compile Include="GameState.cs" />
+    <Compile Include="LineEngine.cs" />
+    <Compile Include="ShotResolver.cs" />
     <Compile Include="Line.cs" />
     <Compile Include="MenuPanel.cs">
       <SubType>UserControl</SubType>

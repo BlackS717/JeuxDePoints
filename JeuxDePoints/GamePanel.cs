@@ -16,6 +16,9 @@ namespace JeuxDePoints {
 
         private const int POINT_RADIUS = 8;
         private const int LINE_THICKNESS = 2;
+        private const bool SHOW_LINE_POINT_RING = true;
+        private const int LINE_POINT_RING_PADDING = 3;
+        private const float LINE_POINT_RING_THICKNESS = 1.5f;
 
         private const int CANNON_WIDTH = 20;
         private const int CANNON_HEIGHT = 60;
@@ -296,42 +299,51 @@ namespace JeuxDePoints {
         }
 
         private void DrawPoints(Graphics g, int offsetX, int offsetY) {
-            for (int row = 0; row <= ROWS; row++) {
-                for (int col = 0; col <= COLS; col++) {
-                    int pointValue = controller.GetPointValue(row, col);
-                    if (pointValue == 0) continue;
+            using (Pen linePointRingPen = new Pen(Color.WhiteSmoke, LINE_POINT_RING_THICKNESS)) {
+                for (int row = 0; row <= ROWS; row++) {
+                    for (int col = 0; col <= COLS; col++) {
+                        int pointValue = controller.GetPointValue(row, col);
+                        if (pointValue == 0) continue;
 
-                    Brush brush = Brushes.Gray;
+                        Brush brush = Brushes.Gray;
 
-                    if (pointValue == (int)CellState.Player1Point || pointValue == (int)CellState.Player1Line) {
-                        brush = player1Brush;
-                    } else if (pointValue == (int)CellState.Player2Point || pointValue == (int)CellState.Player2Line) {
-                        brush = player2Brush;
-                    } else {
-                        continue;
+                        if (pointValue == (int)CellState.Player1) {
+                            brush = player1Brush;
+                        } else if (pointValue == (int)CellState.Player2) {
+                            brush = player2Brush;
+                        } else {
+                            continue;
+                        }
+
+                        /*
+                        int currentPointIndex = row * (COLS + 1) + col;
+                        
+                        if (bulletAnimator.IsAnimating && currentPointIndex == bulletAnimator.AnimatingPointIndex) {
+                            continue;
+                        }
+
+                        */
+
+                        int x = offsetX + col * CELL_SIZE;
+                        int y = offsetY + row * CELL_SIZE;
+
+                        if (!PLACE_POINT_AT_INTERSECTION) {
+                            x += CELL_SIZE / 2;
+                            y += CELL_SIZE / 2;
+                        }
+
+                        x -= POINT_RADIUS / 2;
+                        y -= POINT_RADIUS / 2;
+
+                        g.FillEllipse(brush, x, y, POINT_RADIUS, POINT_RADIUS);
+
+                        if (SHOW_LINE_POINT_RING && controller.IsLinePoint(row, col)) {
+                            int ringX = x - LINE_POINT_RING_PADDING;
+                            int ringY = y - LINE_POINT_RING_PADDING;
+                            int ringSize = POINT_RADIUS + LINE_POINT_RING_PADDING * 2;
+                            g.DrawEllipse(linePointRingPen, ringX, ringY, ringSize, ringSize);
+                        }
                     }
-
-                    /*
-                    int currentPointIndex = row * (COLS + 1) + col;
-                    
-                    if (bulletAnimator.IsAnimating && currentPointIndex == bulletAnimator.AnimatingPointIndex) {
-                        continue;
-                    }
-
-                    */
-
-                    int x = offsetX + col * CELL_SIZE;
-                    int y = offsetY + row * CELL_SIZE;
-
-                    if (!PLACE_POINT_AT_INTERSECTION) {
-                        x += CELL_SIZE / 2;
-                        y += CELL_SIZE / 2;
-                    }
-
-                    x -= POINT_RADIUS / 2;
-                    y -= POINT_RADIUS / 2;
-
-                    g.FillEllipse(brush, x, y, POINT_RADIUS, POINT_RADIUS);
                 }
             }
         }

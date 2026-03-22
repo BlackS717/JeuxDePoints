@@ -67,6 +67,8 @@ namespace JeuxDePoints {
 
         public int GetPointValue(int row, int col) => state.GetPointValue(row, col);
 
+        public bool IsLinePoint(int row, int col) => state.IsLinePoint(row, col);
+
         public (int, int) GetPointCoordinates(int index) => state.GetPointCoordinates(index);
 
         public int GetPointsIndex(int row, int col) => state.GetPointIndex(row, col);
