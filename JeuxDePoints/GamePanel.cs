@@ -64,6 +64,7 @@ namespace JeuxDePoints {
             this.MouseClick += GamePanel_MouseClick;
             this.KeyDown += GamePanel_KeyDown;
             this.controller.StartNewGameEvent += StartNewGame;
+            this.controller.ActionPerformedEvent += () => this.Invalidate();
         }
 
         protected override void Dispose(bool disposing) {
@@ -87,6 +88,13 @@ namespace JeuxDePoints {
 
         private void BulletAnimator_AnimationCompleted(int pointIndex) {
             last_interracted_point_index = pointIndex;
+
+            //bool hit = controller.GetPointValue(pointIndex) != 0;
+
+            (int targetedRow, int targetedCol) = controller.GetPointCoordinates(pointIndex);
+
+            bool hit = controller.HandleAction(ActionType.ShootCannon, (int)controller.GetCurrentPlayerId(), targetedRow, targetedCol);
+
             this.Invalidate();
         }
 
@@ -241,6 +249,50 @@ namespace JeuxDePoints {
             }
 
             g.SmoothingMode = previous;
+
+            DrawMortarAmmo(g, color, x, centerY, facingRight);
+        }
+
+        private void DrawMortarAmmo(Graphics g, Color color, int x, int centerY, bool facingRight) {
+            int playerId = facingRight ? 0 : 1;
+            int currentAmmo = controller.GetCannonCurrentAmmo(playerId);
+            int maxAmmo = controller.GetCannonMaxAmmo(playerId);
+
+            if (maxAmmo <= 0) {
+                return;
+            }
+
+            int ammoRadius = Math.Max(3, CANNON_WIDTH / 5);
+            int ammoDiameter = ammoRadius * 2;
+            int ammoGap = 4;
+
+            int totalWidth = maxAmmo * ammoDiameter + (maxAmmo - 1) * ammoGap;
+            int startX = x + (CANNON_WIDTH - totalWidth) / 2;
+            int y = centerY - CANNON_HEIGHT / 2 - ammoDiameter - 6;
+
+            Color shellFillColor = Color.FromArgb(
+                color.A,
+                Math.Min(255, (int)(color.R * 1.15)),
+                Math.Min(255, (int)(color.G * 1.15)),
+                Math.Min(255, (int)(color.B * 1.15))
+            );
+
+            using (Pen outlinePen = new Pen(Color.FromArgb(180, Color.Black), 1.2f))
+            using (Brush fillBrush = new SolidBrush(shellFillColor))
+            using (Brush emptyBrush = new SolidBrush(Color.FromArgb(60, Color.White))) {
+                for (int i = 0; i < maxAmmo; i++) {
+                    int ammoX = startX + i * (ammoDiameter + ammoGap);
+                    Rectangle ammoRect = new Rectangle(ammoX, y, ammoDiameter, ammoDiameter);
+
+                    if (i < currentAmmo) {
+                        g.FillEllipse(fillBrush, ammoRect);
+                    } else {
+                        g.FillEllipse(emptyBrush, ammoRect);
+                    }
+
+                    g.DrawEllipse(outlinePen, ammoRect);
+                }
+            }
         }
 
         private void DrawPoints(Graphics g, int offsetX, int offsetY) {
@@ -432,11 +484,11 @@ namespace JeuxDePoints {
             }
 
 
-            Console.WriteLine($"Player {playerId + 1} shoots with power {power}");
+            //Console.WriteLine($"Player {playerId + 1} shoots with power {power}");
 
 
-            int targetedX = GetShotTargetCol(power, playerId == 0);
-            int targetedY = cannonRow;
+            int targetedCol = controller.GetShotTargetCol(power);
+            int targetedRow = cannonRow;
 
             bool isPlayer1 = playerId == 0;
 
@@ -453,8 +505,8 @@ namespace JeuxDePoints {
             int startX = barrelTip.x;
             int startY = barrelTip.y;
 
-            int targetX = drawOffsetX + targetedX * CELL_SIZE;
-            int targetY = drawOffsetY + targetedY * CELL_SIZE;
+            int targetX = drawOffsetX + targetedCol * CELL_SIZE;
+            int targetY = drawOffsetY + targetedRow * CELL_SIZE;
             
             // Snap target to grid point (cell center or intersection)
             if (!PLACE_POINT_AT_INTERSECTION) {
@@ -477,44 +529,27 @@ namespace JeuxDePoints {
             }
             */
 
-            if (controller.HandleAction(ActionType.ShootCannon, (int) controller.GetCurrentPlayerId(), targetedX, targetedY)) {
+            // Check if the shot hits a point
+            bool canShoot = controller.CanShootCannon(playerId);
+
+            //bool hit = controller.HandleAction(ActionType.ShootCannon, (int)controller.GetCurrentPlayerId(), targetedRow, targetedCol);
+
+            if (canShoot) {
+
                 if (GameRule.SHOT_ANIMATION_ENABLED) {
                     last_interracted_point_index = -1;
                     bulletAnimator.Start(
                         bulletPath,
-                        targetedX + targetedY * (COLS + 1),
+                        targetedCol + targetedRow * (COLS + 1),
                         isPlayer1 ? player1Brush : player2Brush
                     );
                 } else {
                     bulletAnimator.Stop();
-                    last_interracted_point_index = targetedX + targetedY * (COLS + 1);
+                    last_interracted_point_index = targetedCol + targetedRow * (COLS + 1);
                 }
-                this.Invalidate();
-            }
-        }
-
-        private int GetShotTargetCol(int power, bool isPlayer1) {
-            // clamp power to valid range
-            int maxPower = GameRule.MAX_CANNON_POWER;
-            int minPower = GameRule.MIN_CANNON_POWER;
-
-            power = Math.Max(minPower, Math.Min(maxPower, power));
-
-            // number of columns in the grid (0-based)
-            int minCol = 0;
-            int maxCol = controller.GetCols() - 1; // adjust if different
-
-            // map power to column index (float division for accuracy)
-            int col = (int)Math.Floor(
-                minCol + (power - minPower) * (maxCol - minCol) / (double)(maxPower - minPower)
-            );
-
-            // reverse for player 2 (shooting right-to-left)
-            if (!isPlayer1) {
-                col = maxCol - col; // mirrors the column
             }
 
-            return col;
+            
         }
 
         private List<(int, int)> GenerateBulletPath(
@@ -554,7 +589,6 @@ namespace JeuxDePoints {
 
             if (success) {
                 last_interracted_point_index = index;
-                this.Invalidate();
             }
         }
 

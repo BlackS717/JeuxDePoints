@@ -63,12 +63,67 @@ namespace JeuxDePoints {
             return cannon.MoveVertically(deltaY, rows);
         }
 
+        
+        // 1) Destroy and clean all affected line state.
+        // 2) Rebuild possible lines from the cleaned state.
+        // Rebuild must never run before destruction completes.
+        private void UpdateLinesAfterShot(int targetRow, int targetCol) {
+            int index = GetPointIndex(targetRow, targetCol);
+
+            HashSet<int> affectedPointIndices = DestroyLineAndCleanupState(index);
+
+            if (affectedPointIndices.Count == 0) {
+                return;
+            }
+
+            // rebuild only after the destruction phase has fully completed
+            RebuildLinesAroundRemovedLinePoints(affectedPointIndices);
+        }
+
+        private HashSet<int> DestroyLineAndCleanupState(int destroyedPointIndex) {
+            HashSet<int> affectedPointIndices = new HashSet<int>();
+            points[destroyedPointIndex] = 0;
+
+            if (!pointLines.ContainsKey(destroyedPointIndex)) {
+                return affectedPointIndices; // destroyed cell was not part of any line
+            }
+
+            List<Line> affectedLines = new List<Line>(pointLines[destroyedPointIndex]);
+
+            foreach (Line line in affectedLines) {
+                lines.Remove(line);
+                playerScores[line.playerId] -= GameRule.TOTAL_POINTS_PER_LINE;
+
+                foreach (int linePointIndex in GetLinePointIndices(line)) {
+                    affectedPointIndices.Add(linePointIndex);
+
+                    if (!pointLines.ContainsKey(linePointIndex)) {
+                        continue;
+                    }
+
+                    pointLines[linePointIndex].Remove(line);
+                    if (pointLines[linePointIndex].Count == 0) {
+                        pointLines.Remove(linePointIndex);
+                    }
+                }
+            }
+
+            pointLines.Remove(destroyedPointIndex);
+            affectedPointIndices.Add(destroyedPointIndex);
+            RevertStandaloneLinePointsToRegularPoints(affectedPointIndices, destroyedPointIndex);
+
+            return affectedPointIndices;
+        }
+
+
         public bool PlacePoint(int row, int col) {
 
             if (!IsValidMove(row, col)) {
                 Console.WriteLine($"Invalid move by Player {currentPlayerId + 1} at ({row}, {col})");
                 return false;
             }
+            // print the board state after placing the point for debugging purposes
+            //Console.WriteLine($"Player {currentPlayerId + 1} places a point at (row {row}, col {col})");
 
             int index = GetPointIndex(row, col);
 
@@ -78,6 +133,8 @@ namespace JeuxDePoints {
 
             playerScores[currentPlayerId] += DetectLines(row, col);
 
+            // PrintBoardState();
+
             RecordMove(currentPlayerId, ActionType.PlacePoint, index);
 
             UpdatePlayerTurn();
@@ -86,20 +143,171 @@ namespace JeuxDePoints {
         }
 
         public bool ShootCannon(int targetRow, int targetCol) {
-            // Implement cannon shooting logic here based on game rules
-            // This method should check if the player has cannons available, validate the target, and update the game state accordingly
-            
+            // return true if the shot is considered a hit according to the game rules, false if it's a miss
+            // update the game state accordingly (e.g., remove the hit point, update scores, etc.) based on the game rules
 
-            //if(GameRule.SUCCESSFUL_SHOT_CONSUME_TURN) {
-            //    UpdatePlayerTurn();
-            //}
+            if(!CanShootCannon(currentPlayerId)) {
+                Console.WriteLine($"Player {currentPlayerId + 1} can't shoot - no ammo or cannon is on cooldown");
 
-            //if (GameRule.SUCCESSFUL_SHOT_CONSUME_TURN) {
+                Cannon cannon = cannons[currentPlayerId];
+                if (cannon.GetCurrentAmmo() == 0) {
+                    ReloadCannon(currentPlayerId);
+                }
+
+                return false;
+            }
+
+            cannons[currentPlayerId].Shoot();
+
+            // detect if the shot hit anything
+            bool hitAnyPoint = !IsCellEmpty(targetRow, targetCol);
+            int pointValue = GetPointValue(targetRow, targetCol);
+
+
+            //Console.WriteLine("Player {0} shoots at (row {1}, col {2} = value {3})", currentPlayerId + 1, targetRow, targetCol, pointValue);
+
+            // if it didn't hit any point, it's a miss
+            if (!hitAnyPoint) {
+                // TODO: record the missed shot
+                HandleMissedShot(targetRow, targetCol);
+                Console.WriteLine($" - no point was hit");
+                return false;
+            }
+
+            // rule based validation ---
+
+            if (!GameRule.CAN_SHOOT_OPPONENT_POINTS && !GameRule.CAN_SHOOT_OWN_POINTS) {
+                HandleMissedShot(targetRow, targetCol);
+                Console.WriteLine($" - can't shoot points");
+                return false;
+            }
+
+            bool successfulShot = false;
+            bool hitPoint = IsPoint(targetRow, targetCol);
+
+            if (hitPoint) {
+                successfulShot = HandleShotAtPoint(targetRow, targetCol);
+            } else {
+                successfulShot = HandleShotAtLine(targetRow, targetCol);
+            }
+
+            return successfulShot;
+        }
+
+        private bool HandleShotAtPoint(int targetRow, int targetCol) {
+
+            bool hitOwnPoint = IsCurrentPlayerPoint(targetRow, targetCol);
+
+            if (hitOwnPoint) {
+                // return early if shooting own points is not allowed, without updating the game state
+                if (!GameRule.CAN_SHOOT_OWN_POINTS) {
+                    // point part of a line is still considered a point for validation purposes    
+                    HandleMissedShot(targetRow, targetCol);
+                    Console.WriteLine($" missed the shot - can't shoot own points");
+                    return false;
+                }
+            } else {
+                // return early if shooting opponent points is not allowed, without updating the game state
+                if (!GameRule.CAN_SHOOT_OPPONENT_POINTS) {
+                    HandleMissedShot(targetRow, targetCol);
+                    Console.WriteLine($" missed the shot - can't shoot opponent points");
+                    return false;
+                }
+            }
+
+            // destroy the point
+            HandleSuccessfulShot(targetRow, targetCol, true);
+            return true;
+        }
+
+        private bool HandleShotAtLine(int targetRow, int targetCol) {
+            bool hitOwnLine = IsCurrentPlayerLine(targetRow, targetCol);
+
+            if (hitOwnLine) {
+                
+                if(GameRule.LINE_POINTS_ARE_IMMUNE_TO_OWN_CANNON) {
+                    HandleMissedShot(targetRow, targetCol);
+                    Console.WriteLine($" - can't destroy own line");
+                    return false;
+                }
+                
+                if (!GameRule.CAN_SHOOT_OWN_POINTS) {
+                    // point part of a line is still considered a point for validation purposes    
+                    HandleMissedShot(targetRow, targetCol);
+                    Console.WriteLine($" - can't shoot own points");
+                    return false;
+                }
+
+
+            } else {
+                if(GameRule.LINE_POINTS_ARE_IMMUNE_TO_OPPONENT_CANNON) {
+                    HandleMissedShot(targetRow, targetCol);
+                    Console.WriteLine($" - can't destroy opponent line");
+                    return false;
+                }
+
+                if (!GameRule.CAN_SHOOT_OPPONENT_POINTS) {
+                    HandleMissedShot(targetRow, targetCol);
+                    Console.WriteLine($"  - can't shoot opponent points");
+                    return false;
+                }
+            }
+
+            // destroy the point
+            HandleSuccessfulShot(targetRow, targetCol, false);
+            return true;
+
+        }
+
+        private void HandleSuccessfulShot(int targetRow, int targetCol, bool isPoint) {
+            // Implement logic to handle a successful shot (e.g., remove the hit point, update scores, check for end of game, etc.)
+            Console.WriteLine($"Player {currentPlayerId + 1} successfully hit a point at ({targetRow}, {targetCol})");
+
+            if (GameRule.SUCCESSFUL_SHOT_REFUND_AMMO) {
+                Cannon cannon = cannons[currentPlayerId];
+                if (cannon != null) {
+                    cannon.GiveAmmo(1);
+                }
+            }
+
+            if (isPoint) {
+                int index = GetPointIndex(targetRow, targetCol);
+                points[index] = 0; // remove the hit point from the board
+            } else {
+                // if it's a line we have to update the board accordingly
+                UpdateLinesAfterShot(targetRow, targetCol);
+
+
+            }
+
+            if (GameRule.SUCCESSFUL_SHOT_CONSUME_TURN) {
                 UpdatePlayerTurn();
-            //}
+            }
+        }
 
+        private void HandleMissedShot(int targetRow, int targetCol) {
+            // Implement logic to handle a missed shot (e.g., update scores, check for end of game, etc.)
+            if (GameRule.MISSED_SHOT_CONSUME_TURN) {
+                UpdatePlayerTurn();
+            }
+        }
 
-            return true; // Placeholder return value
+        public bool CanShootCannon(int playerId) {
+            // Implement logic to check if the player can shoot the cannon based on game rules (e.g., ammo count, cooldown, etc.)
+            return cannons[playerId].CanShoot(); // Placeholder return value
+        }
+
+        public void ReloadCannon(int playerId) {
+            if (!GameRule.CAN_RELOAD_AMMO) {
+                return;
+            }
+
+            cannons[playerId].Reload();
+            if(GameRule.RELOADING_USE_TURN) {
+                UpdatePlayerTurn();
+            }
+
+            Console.WriteLine($"Player {playerId + 1} reloads their cannon");
         }
 
         private int DetectLines(int row, int col) {
@@ -123,9 +331,6 @@ namespace JeuxDePoints {
         }
 
         private int ScanAxes(int[] axes, int row, int col) {
-            int playerPointValue = currentPlayerId == 0 ? (int)CellState.Player1Point : (int)CellState.Player2Point;
-            int playerLineValue = currentPlayerId == 0 ? (int)CellState.Player1Line : (int)CellState.Player2Line;
-
             int useCount = 0; // the initial point can only be used once to form a line if CAN_USE_POINTS_IN_LINES is false, so we track the number of time it's used in line formation for validation purposes
 
 
@@ -133,12 +338,12 @@ namespace JeuxDePoints {
             int deltaCol = axes[1];
 
             // scan first direction
-            List<int> consecutivePoint = ScanDirection(deltaRow, deltaCol, row, col, playerPointValue, playerLineValue, ref useCount);
+            List<int> consecutivePoint = ScanDirection(deltaRow, deltaCol, row, col, ref useCount);
 
             // scan opposite direction
-            List<int> consecutivePointOpp = ScanDirection(-deltaRow, -deltaCol, row, col, playerPointValue, playerLineValue, ref useCount);
+            List<int> consecutivePointOpp = ScanDirection(-deltaRow, -deltaCol, row, col, ref useCount);
 
-            int totalPointInAxis = consecutivePoint.Count + consecutivePointOpp.Count - 1; // -1 because the placed point is counted in both directions
+            //    int totalPointInAxis = consecutivePoint.Count + consecutivePointOpp.Count - 1; // -1 because the placed point is counted in both directions
 
             List<Line> allLineInAxe = GetValidLine(consecutivePoint, consecutivePointOpp);
 
@@ -224,6 +429,10 @@ namespace JeuxDePoints {
             int[] endCoords = new int[] { endCoordsTuple.Item1, endCoordsTuple.Item2 };
 
             Line newLine = new Line(startCoords, endCoords, currentPlayerId);
+            if (IsSameAsExistingLine(newLine)) {
+                return null;
+            }
+
             if (!CanFormLine(newLine)) {
                 return null; // doesn't meet the criteria to form a line
             }
@@ -259,8 +468,113 @@ namespace JeuxDePoints {
             return true;
         }
 
+        private bool IsSameAsExistingLine(Line line) {
+            return lines.Any(existingLine =>
+                existingLine.playerId == line.playerId &&
+                (
+                    (existingLine.start[0] == line.start[0] && existingLine.start[1] == line.start[1] &&
+                     existingLine.end[0] == line.end[0] && existingLine.end[1] == line.end[1])
+                    ||
+                    (existingLine.start[0] == line.end[0] && existingLine.start[1] == line.end[1] &&
+                     existingLine.end[0] == line.start[0] && existingLine.end[1] == line.start[1])
+                )
+            );
+        }
 
-        private List<int> ScanDirection(int deltaRow, int deltaCol, int row, int col, int playerPointValue, int playerLineValue, ref int useCount) {
+        private List<int> GetLinePointIndices(Line line) {
+            List<int> linePointIndices = new List<int>();
+
+            int deltaRow = Math.Sign(line.end[0] - line.start[0]);
+            int deltaCol = Math.Sign(line.end[1] - line.start[1]);
+
+            int currentRow = line.start[0];
+            int currentCol = line.start[1];
+
+            for (int i = 0; i < GameRule.TOTAL_POINTS_IN_LINE; i++) {
+                if (!IsWithinBounds(currentRow, currentCol)) {
+                    break;
+                }
+
+                linePointIndices.Add(GetPointIndex(currentRow, currentCol));
+                currentRow += deltaRow;
+                currentCol += deltaCol;
+            }
+
+            return linePointIndices;
+        }
+
+        private void RevertStandaloneLinePointsToRegularPoints(HashSet<int> affectedPointIndices, int destroyedPointIndex) {
+            foreach (int pointIndex in affectedPointIndices) {
+                if (pointIndex == destroyedPointIndex) {
+                    continue;
+                }
+
+                if (pointLines.ContainsKey(pointIndex)) {
+                    continue;
+                }
+
+                int pointValue = points[pointIndex];
+                if (pointValue == (int)CellState.Player1Line) {
+                    points[pointIndex] = (int)CellState.Player1Point;
+                } else if (pointValue == (int)CellState.Player2Line) {
+                    points[pointIndex] = (int)CellState.Player2Point;
+                }
+            }
+        }
+
+        private void RebuildLinesAroundRemovedLinePoints(HashSet<int> removedLinePointIndices) {
+            int previousPlayerId = currentPlayerId;
+
+            int[][] axes = {
+                new int[]{ 0, 1 },   // horizontal
+                new int[]{ 1, 0 },   // vertical
+                new int[]{ 1, 1 },   // diagonal \
+                new int[]{ -1, 1 },  // diagonal /
+            };
+
+            HashSet<int> candidatePointIndices = new HashSet<int>();
+
+            foreach (int removedPointIndex in removedLinePointIndices) {
+                (int row, int col) = GetPointCoordinates(removedPointIndex);
+
+                foreach (int[] axis in axes) {
+                    int deltaRow = axis[0];
+                    int deltaCol = axis[1];
+
+                    CollectCandidatePointsInDirection(row, col, deltaRow, deltaCol, candidatePointIndices);
+                    CollectCandidatePointsInDirection(row, col, -deltaRow, -deltaCol, candidatePointIndices);
+                }
+            }
+
+            foreach (int pointIndex in candidatePointIndices) {
+                (int pointRow, int pointCol) = GetPointCoordinates(pointIndex);
+                int cellValue = points[pointIndex];
+
+                if (cellValue == (int)CellState.Player1Point || cellValue == (int)CellState.Player1Line) {
+                    currentPlayerId = 0;
+                    playerScores[0] += DetectLines(pointRow, pointCol);
+                } else if (cellValue == (int)CellState.Player2Point || cellValue == (int)CellState.Player2Line) {
+                    currentPlayerId = 1;
+                    playerScores[1] += DetectLines(pointRow, pointCol);
+                }
+            }
+
+            currentPlayerId = previousPlayerId;
+        }
+
+        private void CollectCandidatePointsInDirection(int row, int col, int deltaRow, int deltaCol, HashSet<int> candidates) {
+            int r = row + deltaRow;
+            int c = col + deltaCol;
+
+            while (IsWithinBounds(r, c) && !IsCellEmpty(r, c)) {
+                candidates.Add(GetPointIndex(r, c));
+                r += deltaRow;
+                c += deltaCol;
+            }
+        }
+
+
+        private List<int> ScanDirection(int deltaRow, int deltaCol, int row, int col, ref int useCount) {
 
             List<int> pointsInThisDirection = new List<int> {
                 GetPointIndex(row, col) // include the placed point itself
@@ -280,11 +594,10 @@ namespace JeuxDePoints {
 
             while (IsWithinBounds(r, c)) {
                 int index = GetPointIndex(r, c);
-                int value = points[index];
-                if (value != playerPointValue && value != playerLineValue) {
+                if (!IsCurrentPlayerPoint(r, c) && !IsCurrentPlayerLine(r, c)) {
                     break;
                 }
-                if (value == playerLineValue) {
+                if (IsCurrentPlayerLine(r, c)) {
                     if (GameRule.CAN_USE_POINTS_IN_LINES) {
                         // if it's part of a line, check if the previous point is not part of the same line
                         // if so, we can use this point to form a line
@@ -380,7 +693,7 @@ namespace JeuxDePoints {
             return points[index];
         }
 
-        private int GetPointIndex(int row, int col) {
+        public int GetPointIndex(int row, int col) {
             return row * cols + col;
         }
 
@@ -410,6 +723,24 @@ namespace JeuxDePoints {
             }
             currentTurn++;
         }
+
+        public bool IsCurrentPlayerPoint(int row, int col) {
+            int pointValue = GetPointValue(row, col);
+            return (currentPlayerId == 0 && pointValue == (int)CellState.Player1Point) ||
+                   (currentPlayerId == 1 && pointValue == (int)CellState.Player2Point);
+        }
+
+        public bool IsCurrentPlayerLine(int row, int col) {
+            int pointValue = GetPointValue(row, col);
+            return (currentPlayerId == 0 && pointValue == (int)CellState.Player1Line) ||
+                   (currentPlayerId == 1 && pointValue == (int)CellState.Player2Line);
+        }
+
+        public bool IsPoint(int row, int col) {
+            int pointValue = GetPointValue(row, col);
+            return pointValue == (int)CellState.Player1Point || pointValue == (int)CellState.Player2Point;
+        }
+
         public List<Line> GetLines() {
             return new List<Line>(lines);
         }
@@ -428,6 +759,43 @@ namespace JeuxDePoints {
 
         public Cannon GetPlayerCannon(int playerId) {
             return cannons[playerId];
+        }
+
+        public int GetShotTargetCol(int power) {
+            // clamp power to valid range
+            int maxPower = GameRule.MAX_CANNON_POWER;
+            int minPower = GameRule.MIN_CANNON_POWER;
+
+            bool isPlayer1 = currentPlayerId == 0;
+
+            power = Math.Max(minPower, Math.Min(maxPower, power));
+
+            int minCol = 0;
+            int maxCol = cols - 1;
+
+            // map power to column index (float division for accuracy)
+            int col = (int)Math.Floor(
+                minCol + (power - minPower) * (maxCol - minCol) / (double)(maxPower - minPower)
+            );
+
+
+            // reverse for player 2 (shooting right-to-left)
+            if (!isPlayer1) {
+                col = maxCol - col + minCol; // mirrors the column
+            }
+
+            return col;
+        }
+
+        public void PrintBoardState() {
+            for (int r = 0; r < rows; r++) {
+                for (int c = 0; c < cols; c++) {
+                    int pointValue = GetPointValue(r, c);
+                    int symbol = pointValue;
+                    Console.Write(symbol + " ");
+                }
+                Console.WriteLine();
+            }
         }
     }
 }

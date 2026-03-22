@@ -18,19 +18,20 @@ namespace JeuxDePoints {
             this.yPosition = yPosition;
         }
 
-        public bool Shoot(int power) {
+        public bool CanShoot() {
             if (currentAmmo <= 0) {
                 return false; // No ammo left
             }
-            if (power < GameRule.MIN_CANNON_POWER || power > GameRule.MAX_CANNON_POWER) {
-                return false; // Invalid power
-            }
-
-            if(GameRule.INFINITE_AMMO) {
-                currentAmmo--;
-            }
 
             return true; // Shot fired successfully
+        }
+
+        public void Shoot() {
+            if (currentAmmo > 0) {
+                if (!GameRule.INFINITE_AMMO) {
+                    currentAmmo--;
+                }
+            }
         }
 
         public bool Reload() {
@@ -43,6 +44,13 @@ namespace JeuxDePoints {
             }
             currentAmmo = Math.Min(maxAmmo, currentAmmo + GameRule.AMMO_RELOAD_AMOUNT);
             return true; // Reloaded successfully
+        }
+
+        public void GiveAmmo(int amount) {
+            if (amount < 0) {
+                return; // Invalid amount
+            }
+            currentAmmo = Math.Min(maxAmmo, currentAmmo + amount);
         }
 
         public bool MoveVertically(int deltaY, int gridHeight) {

@@ -1,0 +1,12 @@
+﻿Save
+	save_id
+	rows
+	cols
+	rules (or flags)
+History
+	save_id
+	action_index
+	player_id
+	action_type
+	parameters (row/col or power)
+	result (optional)

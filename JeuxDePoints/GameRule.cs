@@ -23,7 +23,7 @@
         // if true
         // start the chain from the longest chain of points and only take the remaining points from the shorter chain
         // else, start from the shorter chain and take the remaining points from the longest chain
-        public const bool CONNECT_TO_LONGEST_CHAIN = true;
+        public const bool CONNECT_TO_LONGEST_CHAIN = true; // ok
 
         // Cannon behavior
         // cannon always shoot a single point and can't be blocked
@@ -32,27 +32,28 @@
         // player have to calculate the power of the cannon to hit the target point
         // some points can't be targeted depending on grid size
         // e.g in a 18x18 grid, 1 hit 0 and 9 hit 17
-        public const bool LINE_POINTS_ARE_IMMUNE_TO_OPPONENT_CANNON = true;
-        public const bool LINE_POINTS_ARE_IMMUNE_TO_OWN_CANNON = true;
+        public const bool CAN_SHOOT_OPPONENT_POINTS = true; // ok
+        public const bool LINE_POINTS_ARE_IMMUNE_TO_OPPONENT_CANNON = true; // ok
 
-        public const bool SUCCESSFUL_SHOT_CONSUME_TURN = true;
-        public const bool MISSED_SHOT_CONSUME_TURN = true;
+        public const bool CAN_SHOOT_OWN_POINTS = false; // ok
+        public const bool LINE_POINTS_ARE_IMMUNE_TO_OWN_CANNON = false; //ok
 
-        public const bool CAN_SHOOT_OWN_POINTS = false;
-        public const bool CAN_SHOOT_OPPONENT_POINTS = true;
 
-        public const bool INFINITE_AMMO = true; // if true, player have limited ammo
-        public const bool CAN_RELOAD_AMMO = true; // if true, player can reload ammo during their turn
-        public const bool RELOADING_USE_TURN = true; // if true, reloading consume the player's turn
-        public const bool SUCCESSFUL_SHOT_REFUND_AMMO = false; // if true, player get ammo back if they successfully shoot a point
+        public const bool SUCCESSFUL_SHOT_CONSUME_TURN = true; // ok
+        public const bool MISSED_SHOT_CONSUME_TURN = true; // ok
 
-        public const bool SHOT_ANIMATION_ENABLED = true;
+        public const bool INFINITE_AMMO = true; // if true, player have limited ammo // ok
+        public const bool CAN_RELOAD_AMMO = false; // if true, player can reload ammo during their turn // ok
+        public const bool RELOADING_USE_TURN = true; // if true, reloading consume the player's turn // ok
+        public const bool SUCCESSFUL_SHOT_REFUND_AMMO = true; // if true, player get ammo back if they successfully shoot a point // ok
 
-        public const int MAX_AMMO = 5; // max ammo a player can have at the start of the game
-        public const int AMMO_RELOAD_AMOUNT = 3; // amount of ammo reloaded when player choose to reload
+        public const bool SHOT_ANIMATION_ENABLED = true; // ok
 
-        public const int MIN_CANNON_POWER = 1; // shoot at the first intersection
-        public const int MAX_CANNON_POWER = 9; // shoot at the last intersection 
+        public const int MAX_AMMO = 5; // max ammo a player can have at the start of the game // ok
+        public const int AMMO_RELOAD_AMOUNT = 3; // amount of ammo reloaded when player choose to reload // ok
+
+        public const int MIN_CANNON_POWER = 1; // shoot at the first intersection // ok
+        public const int MAX_CANNON_POWER = 9; // shoot at the last intersection  // ok
 
 
 
