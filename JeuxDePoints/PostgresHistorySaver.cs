@@ -171,6 +171,43 @@ namespace JeuxDePoints {
             }
         }
 
+        public bool DeleteSaveSlot(IDbConnection connection, long saveSlotId, IDbTransaction transaction = null) {
+            ValidateConnection(connection);
+
+            int affectedRows;
+            using (IDbCommand command = connection.CreateCommand()) {
+                command.Transaction = transaction;
+                command.CommandText = @"
+                    DELETE FROM replay_checkpoint
+                    WHERE save_slot_id = @save_slot_id;";
+
+                AddParameter(command, "@save_slot_id", saveSlotId);
+                command.ExecuteNonQuery();
+            }
+
+            using (IDbCommand command = connection.CreateCommand()) {
+                command.Transaction = transaction;
+                command.CommandText = @"
+                    DELETE FROM game_action
+                    WHERE save_slot_id = @save_slot_id;";
+
+                AddParameter(command, "@save_slot_id", saveSlotId);
+                command.ExecuteNonQuery();
+            }
+
+            using (IDbCommand command = connection.CreateCommand()) {
+                command.Transaction = transaction;
+                command.CommandText = @"
+                    DELETE FROM save_slot
+                    WHERE id = @save_slot_id;";
+
+                AddParameter(command, "@save_slot_id", saveSlotId);
+                affectedRows = command.ExecuteNonQuery();
+            }
+
+            return affectedRows > 0;
+        }
+
         private static void ValidateConnection(IDbConnection connection) {
             if (connection == null) {
                 throw new ArgumentNullException(nameof(connection));

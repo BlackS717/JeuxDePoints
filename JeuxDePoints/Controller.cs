@@ -161,6 +161,23 @@ namespace JeuxDePoints {
             return RebuildStateFromCursor();
         }
 
+        public bool DeleteSaveSlot(string slotName) {
+            if (string.IsNullOrWhiteSpace(slotName)) {
+                return false;
+            }
+
+            string normalizedName = slotName.Trim();
+
+            if (HasDatabaseBackend()) {
+                bool deletedFromDb = DeleteDatabaseSlot(normalizedName);
+                if (deletedFromDb) {
+                    return true;
+                }
+            }
+
+            return saveSlots.Remove(normalizedName);
+        }
+
         public int GetCurrentTurn() => state.GetCurrentTurn();
 
         public int GetCurrentPlayerId() => state.GetCurrentPlayerId();
@@ -313,7 +330,8 @@ namespace JeuxDePoints {
                                 transaction
                             );
 
-                            historySaver.TruncateBranch(connection, saveSlotId, historyCursor, transaction);
+                            // Replace slot content on each save so existing seq values can be rewritten safely.
+                            historySaver.TruncateBranch(connection, saveSlotId, 0, transaction);
 
                             for (int i = 0; i < historyCursor; i++) {
                                 historySaver.SaveAction(connection, saveSlotId, i + 1, timelineMoves[i], transaction);
@@ -353,6 +371,37 @@ namespace JeuxDePoints {
                     timelineMoves.AddRange(CopyTimeline(moves));
                     historyCursor = timelineMoves.Count;
                     return RebuildStateFromCursor();
+                }
+            } catch {
+                return false;
+            }
+        }
+
+        private bool DeleteDatabaseSlot(string slotName) {
+            try {
+                using (IDbConnection connection = dbConnectionFactory()) {
+                    connection.Open();
+
+                    if (!EnsureActiveSessionId(connection)) {
+                        return false;
+                    }
+
+                    List<SaveSlotRow> slots = historyLoader.LoadSaveSlots(connection, activeSessionId.Value);
+                    SaveSlotRow slot = slots.FirstOrDefault(s => string.Equals(s.SlotName, slotName, StringComparison.OrdinalIgnoreCase));
+                    if (slot == null) {
+                        return false;
+                    }
+
+                    using (IDbTransaction transaction = connection.BeginTransaction()) {
+                        try {
+                            bool deleted = historySaver.DeleteSaveSlot(connection, slot.Id, transaction);
+                            transaction.Commit();
+                            return deleted;
+                        } catch {
+                            transaction.Rollback();
+                            return false;
+                        }
+                    }
                 }
             } catch {
                 return false;

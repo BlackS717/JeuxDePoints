@@ -45,7 +45,7 @@
         public const bool INFINITE_AMMO = false; // if true, player have limited ammo // ok
         public const bool CAN_RELOAD_AMMO = false; // if true, player can reload ammo during their turn // ok
         public const bool RELOADING_USE_TURN = true; // if true, reloading consume the player's turn // ok
-        public const bool SUCCESSFUL_SHOT_REFUND_AMMO = true; // if true, player get ammo back if they successfully shoot a point // ok
+        public const bool SUCCESSFUL_SHOT_REFUND_AMMO = false; // if true, player get ammo back if they successfully shoot a point // ok
 
         public const bool SHOT_ANIMATION_ENABLED = true; // ok
 
