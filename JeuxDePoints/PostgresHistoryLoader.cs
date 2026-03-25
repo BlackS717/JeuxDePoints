@@ -36,14 +36,16 @@ namespace JeuxDePoints {
                 checkpointStateJson = checkpoint.StateJson;
             }
 
-            List<Move> moves = LoadActions(connection, slot.Id, startFromSeq, slot.CurrentActionSeq);
+            List<Move> allMoves = LoadActions(connection, slot.Id, 1, slot.CurrentActionSeq);
+            List<Move> movesToReplay = LoadActions(connection, slot.Id, startFromSeq, slot.CurrentActionSeq);
 
             return new SlotLoadPlan {
                 Rows = rows,
                 Cols = cols,
                 StartFromSeq = startFromSeq,
                 CheckpointStateJson = checkpointStateJson,
-                Moves = moves,
+                AllMoves = allMoves,
+                MovesToReplay = movesToReplay,
                 CurrentActionSeq = slot.CurrentActionSeq
             };
         }
@@ -311,7 +313,8 @@ namespace JeuxDePoints {
         public int Cols { get; set; }
         public int StartFromSeq { get; set; }
         public string CheckpointStateJson { get; set; }
-        public List<Move> Moves { get; set; }
+        public List<Move> AllMoves { get; set; }
+        public List<Move> MovesToReplay { get; set; }
         public int CurrentActionSeq { get; set; }
     }
 

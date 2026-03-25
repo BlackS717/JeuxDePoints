@@ -433,11 +433,19 @@ namespace JeuxDePoints {
                     }
 
                     timelineMoves.Clear();
-                    timelineMoves.AddRange(CopyTimeline(loadPlan.Moves));
+                    timelineMoves.AddRange(CopyTimeline(loadPlan.AllMoves));
 
-                    List<Move> appliedMoves = ReplayMoves(state, timelineMoves, true);
-                    timelineMoves.Clear();
-                    timelineMoves.AddRange(CopyTimeline(appliedMoves));
+                    List<Move> replayTail = loadPlan.MovesToReplay ?? new List<Move>();
+                    List<Move> appliedTail = ReplayMoves(state, replayTail, true);
+
+                    if (appliedTail.Count != replayTail.Count) {
+                        int prefixCount = Math.Max(0, loadPlan.StartFromSeq - 1);
+                        List<Move> correctedTimeline = timelineMoves.Take(prefixCount).ToList();
+                        correctedTimeline.AddRange(appliedTail);
+
+                        timelineMoves.Clear();
+                        timelineMoves.AddRange(CopyTimeline(correctedTimeline));
+                    }
 
                     historyCursor = timelineMoves.Count;
                     ActionPerformedEvent?.Invoke();

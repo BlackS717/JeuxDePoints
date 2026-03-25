@@ -163,6 +163,7 @@ namespace JeuxDePoints {
             int offsetY = GetBoardOffsetY();
 
             DrawGrid(g, offsetX, offsetY);
+            DrawActiveCannonAimLine(g, offsetX, offsetY);
             DrawPoints(g, offsetX, offsetY);
             DrawLines(g, offsetX, offsetY);
             DrawCannons(g, offsetX, offsetY);
@@ -205,6 +206,20 @@ namespace JeuxDePoints {
                 using (Pen pen = new Pen(gridColor, 1)) {
                     g.DrawLine(pen, offsetX, y, offsetX + col * CELL_SIZE, y);
                 }
+            }
+        }
+
+        private void DrawActiveCannonAimLine(Graphics g, int offsetX, int offsetY) {
+            int currentPlayerId = controller.GetCurrentPlayerId();
+            int y = GetSnappedCannonCenterY(controller.GetCannonY(currentPlayerId), offsetY);
+            int x1 = offsetX;
+            int x2 = offsetX + GetGridDrawCols() * CELL_SIZE;
+
+            Color baseColor = currentPlayerId == 0 ? player1Color : player2Color;
+
+            using (Pen aimPen = new Pen(Color.FromArgb(160, baseColor), 2f)) {
+                aimPen.DashStyle = DashStyle.Dash;
+                g.DrawLine(aimPen, x1, y, x2, y);
             }
         }
 
