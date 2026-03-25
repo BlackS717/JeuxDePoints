@@ -98,7 +98,60 @@ namespace JeuxDePoints {
         }
 
         private void newGameBtn_Click(object sender, EventArgs e) {
-            controller.StartNewGame();
+            // Prompt for grid dimensions
+            var gridForm = new Form {
+                Text = "New Game - Grid Size",
+                Width = 300,
+                Height = 200,
+                StartPosition = FormStartPosition.CenterParent,
+                ShowInTaskbar = false
+            };
+
+            Label rowsLabel = new Label { Text = "Rows:", Left = 20, Top = 20, Width = 100 };
+            NumericUpDown rowsInput = new NumericUpDown { Left = 120, Top = 20, Width = 100, Minimum = 5, Maximum = 50, Value = 10 };
+
+            Label colsLabel = new Label { Text = "Columns:", Left = 20, Top = 60, Width = 100 };
+            NumericUpDown colsInput = new NumericUpDown { Left = 120, Top = 60, Width = 100, Minimum = 5, Maximum = 50, Value = 10 };
+
+            Button okButton = new Button { Text = "OK", DialogResult = DialogResult.OK, Left = 80, Top = 110, Width = 80 };
+            Button cancelButton = new Button { Text = "Cancel", DialogResult = DialogResult.Cancel, Left = 170, Top = 110, Width = 80 };
+
+            gridForm.Controls.Add(rowsLabel);
+            gridForm.Controls.Add(rowsInput);
+            gridForm.Controls.Add(colsLabel);
+            gridForm.Controls.Add(colsInput);
+            gridForm.Controls.Add(okButton);
+            gridForm.Controls.Add(cancelButton);
+
+            if (gridForm.ShowDialog() == DialogResult.OK) {
+                int rows = (int)rowsInput.Value;
+                int cols = (int)colsInput.Value;
+                controller.StartNewGame(rows, cols);
+            }
+        }
+
+        private void stopGameBtn_Click(object sender, EventArgs e) {
+            if (controller.IsGameOver()) {
+                MessageBox.Show("The game is already stopped.", "Stop Game", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            controller.EndGame();
+
+            int player1Score = controller.GetPlayerScore(0);
+            int player2Score = controller.GetPlayerScore(1);
+
+            string winnerMessage;
+            if (player1Score > player2Score) {
+                winnerMessage = $"Winner: Player 1\nFinal Score: {player1Score} - {player2Score}";
+            } else if (player2Score > player1Score) {
+                winnerMessage = $"Winner: Player 2\nFinal Score: {player1Score} - {player2Score}";
+            } else {
+                winnerMessage = $"Draw\nFinal Score: {player1Score} - {player2Score}";
+            }
+
+            MessageBox.Show(winnerMessage, "Game Over", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            RefreshMoveHistoryUi();
         }
 
         private void saveBtn_Click(object sender, EventArgs e) {
@@ -158,6 +211,7 @@ namespace JeuxDePoints {
         private void RefreshMoveHistoryUi() {
             moveHistoryListBox.Items.Clear();
             RefreshPersistenceModeLabel();
+            RefreshScoreLabels();
 
             var moves = controller.GetTimelineMoveHistory();
             int cols = controller.GetCols();
@@ -186,6 +240,19 @@ namespace JeuxDePoints {
             undoBtn.Enabled = controller.CanUndoMove();
             redoBtn.Enabled = controller.CanRedoMove();
             goToStateBtn.Enabled = moveHistoryListBox.SelectedIndex >= 0;
+            stopGameBtn.Enabled = !controller.IsGameOver();
+        }
+
+        private void RefreshScoreLabels() {
+            if (controller == null || player1ScoreLabel == null || player2ScoreLabel == null) {
+                return;
+            }
+
+            int player1Score = controller.GetPlayerScore(0);
+            int player2Score = controller.GetPlayerScore(1);
+
+            player1ScoreLabel.Text = $"Player 1 Score: {player1Score}";
+            player2ScoreLabel.Text = $"Player 2 Score: {player2Score}";
         }
 
         private void RefreshPersistenceModeLabel() {

@@ -67,7 +67,7 @@ namespace JeuxDePoints {
             this.MouseClick += GamePanel_MouseClick;
             this.KeyDown += GamePanel_KeyDown;
             this.controller.StartNewGameEvent += StartNewGame;
-            this.controller.ActionPerformedEvent += () => this.Invalidate();
+            this.controller.ActionPerformedEvent += OnActionPerformed;
         }
 
         protected override void Dispose(bool disposing) {
@@ -83,6 +83,7 @@ namespace JeuxDePoints {
 
                 if (this.controller != null) {
                     this.controller.StartNewGameEvent -= StartNewGame;
+                    this.controller.ActionPerformedEvent -= OnActionPerformed;
                 }
             }
 
@@ -96,7 +97,7 @@ namespace JeuxDePoints {
 
             (int targetedRow, int targetedCol) = controller.GetPointCoordinates(pointIndex);
 
-            bool hit = controller.HandleAction(ActionType.ShootCannon, (int)controller.GetCurrentPlayerId(), targetedRow, targetedCol);
+            bool hit = controller.HandleAction(ActionType.ShootCannon, targetedRow, targetedCol);
 
             this.Invalidate();
         }
@@ -154,6 +155,8 @@ namespace JeuxDePoints {
 
         private void GamePanel_Paint(object sender, PaintEventArgs e) {
             if (disablePaint) return;
+
+            SyncGridDimensions();
             Graphics g = e.Graphics;
 
             int offsetX = GetBoardOffsetX();
@@ -170,6 +173,20 @@ namespace JeuxDePoints {
                 var pos = bulletAnimator.CurrentPosition;
                 g.FillEllipse(bulletAnimator.CurrentBrush, pos.x - POINT_RADIUS / 2, pos.y - POINT_RADIUS / 2, POINT_RADIUS, POINT_RADIUS);
             }
+        }
+
+        private void OnActionPerformed() {
+            SyncGridDimensions();
+            this.Invalidate();
+        }
+
+        private void SyncGridDimensions() {
+            // Keep visual grid in sync with current controller state (load/new game can change dimensions).
+            int rows = controller.GetRows();
+            int cols = controller.GetCols();
+
+            ROWS = Math.Max(0, rows - 1);
+            COLS = Math.Max(0, cols - 1);
         }
 
         private void DrawGrid(Graphics g, int offsetX, int offsetY) {
@@ -424,6 +441,8 @@ namespace JeuxDePoints {
         }
 
         private void StartNewGame() {
+            SyncGridDimensions();
+            
             last_interracted_point_index = -1;
             bulletAnimator.Stop();
             this.Invalidate();
@@ -587,14 +606,11 @@ namespace JeuxDePoints {
             }
 
             int index = getClosestPointIndex(e.X, e.Y);
-            int currentPlayerIdBefore = controller.GetCurrentPlayerId();
-            
             int targetCol = index % (COLS + 1);
             int targetRow = index / (COLS + 1);
 
             bool success = controller.HandleAction(
                 ActionType.PlacePoint,
-                currentPlayerIdBefore,
                 targetRow,
                 targetCol
             );

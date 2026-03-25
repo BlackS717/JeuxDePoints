@@ -27,9 +27,12 @@
             this.controlsPanel = new System.Windows.Forms.TableLayoutPanel();
             this.controlsHeaderLabel = new System.Windows.Forms.Label();
             this.newGameBtn = new System.Windows.Forms.Button();
+            this.stopGameBtn = new System.Windows.Forms.Button();
             this.saveBtn = new System.Windows.Forms.Button();
             this.loadBtn = new System.Windows.Forms.Button();
             this.persistenceModeLabel = new System.Windows.Forms.Label();
+            this.player1ScoreLabel = new System.Windows.Forms.Label();
+            this.player2ScoreLabel = new System.Windows.Forms.Label();
             this.historyPanel = new System.Windows.Forms.TableLayoutPanel();
             this.historyHeaderLabel = new System.Windows.Forms.Label();
             this.undoBtn = new System.Windows.Forms.Button();
@@ -56,7 +59,7 @@
             this.rootLayout.Name = "rootLayout";
             this.rootLayout.Padding = new System.Windows.Forms.Padding(10, 10, 10, 10);
             this.rootLayout.RowCount = 4;
-            this.rootLayout.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 176F));
+            this.rootLayout.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 274F));
             this.rootLayout.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 280F));
             this.rootLayout.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 28F));
             this.rootLayout.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100F));
@@ -70,20 +73,26 @@
             this.controlsPanel.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
             this.controlsPanel.Controls.Add(this.controlsHeaderLabel, 0, 0);
             this.controlsPanel.Controls.Add(this.newGameBtn, 0, 1);
-            this.controlsPanel.Controls.Add(this.saveBtn, 0, 2);
-            this.controlsPanel.Controls.Add(this.loadBtn, 0, 3);
-            this.controlsPanel.Controls.Add(this.persistenceModeLabel, 0, 4);
+            this.controlsPanel.Controls.Add(this.stopGameBtn, 0, 2);
+            this.controlsPanel.Controls.Add(this.saveBtn, 0, 3);
+            this.controlsPanel.Controls.Add(this.loadBtn, 0, 4);
+            this.controlsPanel.Controls.Add(this.persistenceModeLabel, 0, 5);
+            this.controlsPanel.Controls.Add(this.player1ScoreLabel, 0, 6);
+            this.controlsPanel.Controls.Add(this.player2ScoreLabel, 0, 7);
             this.controlsPanel.Dock = System.Windows.Forms.DockStyle.Fill;
             this.controlsPanel.Location = new System.Drawing.Point(13, 13);
             this.controlsPanel.Name = "controlsPanel";
             this.controlsPanel.Padding = new System.Windows.Forms.Padding(8);
-            this.controlsPanel.RowCount = 5;
+            this.controlsPanel.RowCount = 8;
             this.controlsPanel.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 24F));
             this.controlsPanel.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 34F));
             this.controlsPanel.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 34F));
             this.controlsPanel.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 34F));
+            this.controlsPanel.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 34F));
             this.controlsPanel.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 32F));
-            this.controlsPanel.Size = new System.Drawing.Size(300, 170);
+            this.controlsPanel.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 28F));
+            this.controlsPanel.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 28F));
+            this.controlsPanel.Size = new System.Drawing.Size(300, 268);
             this.controlsPanel.TabIndex = 0;
             // 
             // controlsHeaderLabel
@@ -110,15 +119,28 @@
             this.newGameBtn.UseVisualStyleBackColor = true;
             this.newGameBtn.Click += new System.EventHandler(this.newGameBtn_Click);
             // 
+            // stopGameBtn
+            // 
+            this.stopGameBtn.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.stopGameBtn.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this.stopGameBtn.Location = new System.Drawing.Point(11, 69);
+            this.stopGameBtn.Margin = new System.Windows.Forms.Padding(3, 3, 3, 6);
+            this.stopGameBtn.Name = "stopGameBtn";
+            this.stopGameBtn.Size = new System.Drawing.Size(278, 25);
+            this.stopGameBtn.TabIndex = 2;
+            this.stopGameBtn.Text = "Stop Game";
+            this.stopGameBtn.UseVisualStyleBackColor = true;
+            this.stopGameBtn.Click += new System.EventHandler(this.stopGameBtn_Click);
+            // 
             // saveBtn
             // 
             this.saveBtn.Dock = System.Windows.Forms.DockStyle.Fill;
             this.saveBtn.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-            this.saveBtn.Location = new System.Drawing.Point(11, 69);
+            this.saveBtn.Location = new System.Drawing.Point(11, 103);
             this.saveBtn.Margin = new System.Windows.Forms.Padding(3, 3, 3, 6);
             this.saveBtn.Name = "saveBtn";
             this.saveBtn.Size = new System.Drawing.Size(278, 25);
-            this.saveBtn.TabIndex = 2;
+            this.saveBtn.TabIndex = 3;
             this.saveBtn.Text = "Save";
             this.saveBtn.UseVisualStyleBackColor = true;
             this.saveBtn.Click += new System.EventHandler(this.saveBtn_Click);
@@ -127,11 +149,11 @@
             // 
             this.loadBtn.Dock = System.Windows.Forms.DockStyle.Fill;
             this.loadBtn.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-            this.loadBtn.Location = new System.Drawing.Point(11, 103);
+            this.loadBtn.Location = new System.Drawing.Point(11, 137);
             this.loadBtn.Margin = new System.Windows.Forms.Padding(3, 3, 3, 6);
             this.loadBtn.Name = "loadBtn";
             this.loadBtn.Size = new System.Drawing.Size(278, 25);
-            this.loadBtn.TabIndex = 3;
+            this.loadBtn.TabIndex = 4;
             this.loadBtn.Text = "Load";
             this.loadBtn.UseVisualStyleBackColor = true;
             this.loadBtn.Click += new System.EventHandler(this.loadBtn_Click);
@@ -141,14 +163,42 @@
             this.persistenceModeLabel.BackColor = System.Drawing.Color.White;
             this.persistenceModeLabel.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
             this.persistenceModeLabel.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.persistenceModeLabel.Location = new System.Drawing.Point(11, 137);
+            this.persistenceModeLabel.Location = new System.Drawing.Point(11, 171);
             this.persistenceModeLabel.Margin = new System.Windows.Forms.Padding(3, 3, 3, 0);
             this.persistenceModeLabel.Name = "persistenceModeLabel";
             this.persistenceModeLabel.Padding = new System.Windows.Forms.Padding(6, 4, 6, 4);
             this.persistenceModeLabel.Size = new System.Drawing.Size(278, 33);
-            this.persistenceModeLabel.TabIndex = 4;
+            this.persistenceModeLabel.TabIndex = 5;
             this.persistenceModeLabel.Text = "Persistence: Memory only";
             this.persistenceModeLabel.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+            // 
+            // player1ScoreLabel
+            // 
+            this.player1ScoreLabel.BackColor = System.Drawing.Color.White;
+            this.player1ScoreLabel.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
+            this.player1ScoreLabel.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.player1ScoreLabel.Location = new System.Drawing.Point(11, 204);
+            this.player1ScoreLabel.Margin = new System.Windows.Forms.Padding(3, 0, 3, 0);
+            this.player1ScoreLabel.Name = "player1ScoreLabel";
+            this.player1ScoreLabel.Padding = new System.Windows.Forms.Padding(6, 2, 6, 2);
+            this.player1ScoreLabel.Size = new System.Drawing.Size(278, 28);
+            this.player1ScoreLabel.TabIndex = 6;
+            this.player1ScoreLabel.Text = "Player 1 Score: 0";
+            this.player1ScoreLabel.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+            // 
+            // player2ScoreLabel
+            // 
+            this.player2ScoreLabel.BackColor = System.Drawing.Color.White;
+            this.player2ScoreLabel.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
+            this.player2ScoreLabel.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.player2ScoreLabel.Location = new System.Drawing.Point(11, 232);
+            this.player2ScoreLabel.Margin = new System.Windows.Forms.Padding(3, 0, 3, 0);
+            this.player2ScoreLabel.Name = "player2ScoreLabel";
+            this.player2ScoreLabel.Padding = new System.Windows.Forms.Padding(6, 2, 6, 2);
+            this.player2ScoreLabel.Size = new System.Drawing.Size(278, 36);
+            this.player2ScoreLabel.TabIndex = 7;
+            this.player2ScoreLabel.Text = "Player 2 Score: 0";
+            this.player2ScoreLabel.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
             // 
             // historyPanel
             // 
@@ -283,9 +333,12 @@
         private System.Windows.Forms.TableLayoutPanel controlsPanel;
         private System.Windows.Forms.Label controlsHeaderLabel;
         private System.Windows.Forms.Button newGameBtn;
+        private System.Windows.Forms.Button stopGameBtn;
         private System.Windows.Forms.Button saveBtn;
         private System.Windows.Forms.Button loadBtn;
         private System.Windows.Forms.Label persistenceModeLabel;
+        private System.Windows.Forms.Label player1ScoreLabel;
+        private System.Windows.Forms.Label player2ScoreLabel;
         private System.Windows.Forms.TableLayoutPanel historyPanel;
         private System.Windows.Forms.Label historyHeaderLabel;
         private System.Windows.Forms.Button undoBtn;

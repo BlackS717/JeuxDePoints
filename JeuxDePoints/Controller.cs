@@ -31,7 +31,7 @@ namespace JeuxDePoints {
             historyCursor = 0;
         }
 
-        public bool HandleAction(ActionType actionType, int playerId, int row, int col) {
+        public bool HandleAction(ActionType actionType, int row, int col) {
             bool result = false;
             switch (actionType) {
                 case ActionType.PlacePoint:
@@ -42,7 +42,7 @@ namespace JeuxDePoints {
                     break;
             }
 
-                    SyncTimelineWithStateHistory();
+            SyncTimelineWithStateHistory();
 
             ActionPerformedEvent?.Invoke();
 
@@ -182,6 +182,8 @@ namespace JeuxDePoints {
 
         public int GetCurrentPlayerId() => state.GetCurrentPlayerId();
 
+        public int GetPlayerScore(int playerId) => state.GetPlayerScore(playerId);
+
         public List<Line> GetLines() => state.GetLines();
 
         public int GetPointValue(int index) => state.GetPointValue(index);
@@ -196,6 +198,15 @@ namespace JeuxDePoints {
 
         public bool IsGameOver() => state.IsGameOver();
 
+        public void EndGame() {
+            if (state.IsGameOver()) {
+                return;
+            }
+
+            state.EndGame();
+            ActionPerformedEvent?.Invoke();
+        }
+
         public bool IsUsingDatabasePersistence() => HasDatabaseBackend();
 
         public string GetPersistenceModeLabel() {
@@ -207,9 +218,14 @@ namespace JeuxDePoints {
         }
 
         public void StartNewGame() {
-            state = new GameState(state.GetRows(), state.GetCols());
+            StartNewGame(state.GetRows(), state.GetCols());
+        }
+
+        public void StartNewGame(int rows, int cols) {
+            state = new GameState(rows, cols);
             timelineMoves.Clear();
             historyCursor = 0;
+            activeSessionId = null;  // Reset session for new game with potentially different dimensions
 
             StartNewGameEvent?.Invoke();
             ActionPerformedEvent?.Invoke();
@@ -242,28 +258,50 @@ namespace JeuxDePoints {
         private bool RebuildStateFromCursor() {
             GameState rebuiltState = new GameState(state.GetRows(), state.GetCols());
 
-            for (int i = 0; i < historyCursor; i++) {
-                Move move = timelineMoves[i];
-                int? index = move.PointIndex ?? move.TargetIndex;
+            int moveCount = Math.Min(historyCursor, timelineMoves.Count);
+            List<Move> movesToReplay = timelineMoves.Take(moveCount).ToList();
+            List<Move> appliedMoves = ReplayMoves(rebuiltState, movesToReplay, true);
 
-                if (!index.HasValue) {
-                    continue;
-                }
-
-                (int row, int col) = rebuiltState.GetPointCoordinates(index.Value);
-                switch (move.ActionType) {
-                    case ActionType.PlacePoint:
-                        rebuiltState.PlacePoint(row, col);
-                        break;
-                    case ActionType.ShootCannon:
-                        rebuiltState.ShootCannon(row, col);
-                        break;
-                }
-            }
+            // Keep cursor aligned with what was actually applied.
+            historyCursor = appliedMoves.Count;
 
             state = rebuiltState;
             ActionPerformedEvent?.Invoke();
             return true;
+        }
+
+        private List<Move> ReplayMoves(GameState targetState, IEnumerable<Move> moves, bool validateBounds) {
+            List<Move> appliedMoves = new List<Move>();
+
+            foreach (Move move in moves) {
+                int? index = move.PointIndex ?? move.TargetIndex;
+                if (!index.HasValue) {
+                    continue;
+                }
+
+                if (validateBounds && (index.Value < 0 || index.Value >= (targetState.GetRows() * targetState.GetCols()))) {
+                    Console.WriteLine($"Warning: Move index {index.Value} out of bounds for grid {targetState.GetRows()}x{targetState.GetCols()}. Skipping move.");
+                    continue;
+                }
+
+                (int row, int col) = targetState.GetPointCoordinates(index.Value);
+                bool applied = false;
+
+                switch (move.ActionType) {
+                    case ActionType.PlacePoint:
+                        applied = targetState.PlacePoint(row, col);
+                        break;
+                    case ActionType.ShootCannon:
+                        applied = targetState.ShootCannon(row, col);
+                        break;
+                }
+
+                if (applied) {
+                    appliedMoves.Add(move);
+                }
+            }
+
+            return appliedMoves;
         }
 
         private static List<Move> CopyTimeline(List<Move> source) {
@@ -316,7 +354,7 @@ namespace JeuxDePoints {
                     using (IDbTransaction transaction = connection.BeginTransaction()) {
                         try {
                             if (!activeSessionId.HasValue) {
-                                string rulesJson = BuildRulesJson();
+                                string rulesJson = BuildRulesJson(state.GetRows(), state.GetCols());
                                 string rulesHash = ComputeSha256Hex(rulesJson);
                                 activeSessionId = historySaver.CreateSession(connection, "JeuxDePoints Session", rulesHash, rulesJson, transaction);
                             }
@@ -333,9 +371,15 @@ namespace JeuxDePoints {
                             // Replace slot content on each save so existing seq values can be rewritten safely.
                             historySaver.TruncateBranch(connection, saveSlotId, 0, transaction);
 
+                            // Save all moves and create checkpoints at intervals
                             for (int i = 0; i < historyCursor; i++) {
                                 historySaver.SaveAction(connection, saveSlotId, i + 1, timelineMoves[i], transaction);
                             }
+
+                            // Save checkpoint for the final state
+                            GameStateSnapshot finalSnapshot = state.GetSnapshot();
+                            string finalStateJson = finalSnapshot.ToJson();
+                            historySaver.SaveCheckpoint(connection, saveSlotId, historyCursor, finalStateJson, transaction);
 
                             historySaver.UpdateCurrentActionSeq(connection, saveSlotId, historyCursor, transaction);
                             transaction.Commit();
@@ -360,17 +404,44 @@ namespace JeuxDePoints {
                         return false;
                     }
 
-                    List<SaveSlotRow> slots = historyLoader.LoadSaveSlots(connection, activeSessionId.Value);
-                    SaveSlotRow slot = slots.FirstOrDefault(s => string.Equals(s.SlotName, slotName, StringComparison.OrdinalIgnoreCase));
-                    if (slot == null) {
+                    SlotLoadPlan loadPlan = historyLoader.BuildSlotLoadPlan(
+                        connection,
+                        activeSessionId.Value,
+                        slotName,
+                        state.GetRows(),
+                        state.GetCols());
+
+                    if (loadPlan == null) {
                         return false;
                     }
 
-                    List<Move> moves = historyLoader.LoadActions(connection, slot.Id, 1, slot.CurrentActionSeq);
+                    // Create new GameState with correct grid dimensions IMMEDIATELY to avoid index out of bounds
+                    GameState rebuiltState = new GameState(loadPlan.Rows, loadPlan.Cols);
+                    state = rebuiltState;
+
+                    if (!string.IsNullOrEmpty(loadPlan.CheckpointStateJson)) {
+                        try {
+                            // Deserialize the saved state snapshot to restore board state at checkpoint
+                            GameStateSnapshot savedSnapshot = GameStateSnapshot.FromJson(loadPlan.CheckpointStateJson);
+                            // Restore the state from checkpoint (board layout, cannons, etc.)
+                            rebuiltState = RestoreStateFromSnapshot(savedSnapshot);
+                            state = rebuiltState;
+                        } catch (Exception ex) {
+                            // If deserialization fails, log and continue with empty board.
+                            Console.WriteLine($"Failed to restore checkpoint: {ex.Message}");
+                        }
+                    }
+
                     timelineMoves.Clear();
-                    timelineMoves.AddRange(CopyTimeline(moves));
+                    timelineMoves.AddRange(CopyTimeline(loadPlan.Moves));
+
+                    List<Move> appliedMoves = ReplayMoves(state, timelineMoves, true);
+                    timelineMoves.Clear();
+                    timelineMoves.AddRange(CopyTimeline(appliedMoves));
+
                     historyCursor = timelineMoves.Count;
-                    return RebuildStateFromCursor();
+                    ActionPerformedEvent?.Invoke();
+                    return true;
                 }
             } catch {
                 return false;
@@ -422,7 +493,7 @@ namespace JeuxDePoints {
             return true;
         }
 
-        private static string BuildRulesJson() {
+        private static string BuildRulesJson(int rows = -1, int cols = -1) {
             var fields = typeof(GameRule)
                 .GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static)
                 .Where(f => f.IsLiteral && !f.IsInitOnly)
@@ -431,6 +502,12 @@ namespace JeuxDePoints {
 
             StringBuilder builder = new StringBuilder();
             builder.Append("{");
+            
+            // Include grid dimensions if provided
+            if (rows > 0 && cols > 0) {
+                builder.Append("\"GridRows\":").Append(rows).Append(",");
+                builder.Append("\"GridCols\":").Append(cols).Append(",");
+            }
 
             for (int i = 0; i < fields.Count; i++) {
                 FieldInfo field = fields[i];
@@ -456,6 +533,38 @@ namespace JeuxDePoints {
 
             builder.Append("}");
             return builder.ToString();
+        }
+
+        private static GameState RestoreStateFromSnapshot(GameStateSnapshot snapshot) {
+            // Create a new GameState with the snapshot's dimensions
+            GameState restoredState = new GameState(snapshot.Rows, snapshot.Cols);
+            
+            // Restore points: iterate through the snapshot and place points where they exist
+            for (int i = 0; i < snapshot.Points.Length; i++) {
+                if (snapshot.Points[i] != 0) {
+                    (int row, int col) = restoredState.GetPointCoordinates(i);
+                    int pointValue = snapshot.Points[i];
+                    // Directly set the point value in the state
+                    restoredState.RestorePoint(row, col, pointValue);
+                }
+            }
+            
+            // Restore lines
+            foreach (var lineState in snapshot.Lines) {
+                restoredState.RestoreLine(lineState);
+            }
+            
+            // Restore cannons
+            int cannonIndex = 0;
+            foreach (var cannonSnapshot in snapshot.Cannons) {
+                restoredState.RestoreCannon(cannonSnapshot, cannonIndex);
+                cannonIndex++;
+            }
+            
+            // Restore game state properties
+            restoredState.RestoreGameState(snapshot.CurrentPlayerId, snapshot.CurrentTurn, snapshot.IsGameOver, snapshot.PlayerScores);
+            
+            return restoredState;
         }
 
         private static string ComputeSha256Hex(string text) {

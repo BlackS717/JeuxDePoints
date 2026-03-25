@@ -1,9 +1,53 @@
 using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Linq;
+using System.Text.Json;
 
 namespace JeuxDePoints {
     internal class PostgresHistoryLoader {
+        public SlotLoadPlan BuildSlotLoadPlan(
+            IDbConnection connection,
+            long sessionId,
+            string slotName,
+            int fallbackRows,
+            int fallbackCols) {
+            ValidateConnection(connection);
+
+            if (string.IsNullOrWhiteSpace(slotName)) {
+                return null;
+            }
+
+            List<SaveSlotRow> slots = LoadSaveSlots(connection, sessionId);
+            SaveSlotRow slot = slots.FirstOrDefault(s => string.Equals(s.SlotName, slotName, StringComparison.OrdinalIgnoreCase));
+            if (slot == null) {
+                return null;
+            }
+
+            MatchSessionRow session = LoadSessionById(connection, sessionId);
+            (int rows, int cols) = ExtractGridDimensionsFromRules(session?.RulesJson, fallbackRows, fallbackCols);
+
+            ReplayCheckpointRow checkpoint = LoadNearestCheckpoint(connection, slot.Id, slot.CurrentActionSeq);
+            int startFromSeq = 1;
+            string checkpointStateJson = null;
+
+            if (checkpoint != null && !string.IsNullOrEmpty(checkpoint.StateJson)) {
+                startFromSeq = checkpoint.ActionSeq + 1;
+                checkpointStateJson = checkpoint.StateJson;
+            }
+
+            List<Move> moves = LoadActions(connection, slot.Id, startFromSeq, slot.CurrentActionSeq);
+
+            return new SlotLoadPlan {
+                Rows = rows,
+                Cols = cols,
+                StartFromSeq = startFromSeq,
+                CheckpointStateJson = checkpointStateJson,
+                Moves = moves,
+                CurrentActionSeq = slot.CurrentActionSeq
+            };
+        }
+
         public List<MatchSessionRow> LoadSessions(IDbConnection connection) {
             ValidateConnection(connection);
 
@@ -60,6 +104,35 @@ namespace JeuxDePoints {
             }
 
             return slots;
+        }
+
+        public MatchSessionRow LoadSessionById(IDbConnection connection, long sessionId) {
+            ValidateConnection(connection);
+
+            using (IDbCommand command = connection.CreateCommand()) {
+                command.CommandText = @"
+                    SELECT id, name, rules_hash, rules_json::text, created_at_utc, updated_at_utc
+                    FROM match_session
+                    WHERE id = @session_id
+                    LIMIT 1;";
+
+                AddParameter(command, "@session_id", sessionId);
+
+                using (IDataReader reader = command.ExecuteReader()) {
+                    if (!reader.Read()) {
+                        return null;
+                    }
+
+                    return new MatchSessionRow {
+                        Id = ReadInt64(reader, 0),
+                        Name = ReadString(reader, 1),
+                        RulesHash = ReadString(reader, 2),
+                        RulesJson = ReadString(reader, 3),
+                        CreatedAtUtc = ReadDateTime(reader, 4),
+                        UpdatedAtUtc = ReadDateTime(reader, 5)
+                    };
+                }
+            }
         }
 
         public List<Move> LoadActions(IDbConnection connection, long saveSlotId, int fromSeqInclusive = 1, int? toSeqInclusive = null) {
@@ -205,6 +278,41 @@ namespace JeuxDePoints {
         private static string ReadNullableString(IDataRecord reader, int ordinal) {
             return reader.IsDBNull(ordinal) ? null : ReadString(reader, ordinal);
         }
+
+        private static (int rows, int cols) ExtractGridDimensionsFromRules(string rulesJson, int fallbackRows, int fallbackCols) {
+            if (string.IsNullOrEmpty(rulesJson)) {
+                return (fallbackRows, fallbackCols);
+            }
+
+            try {
+                using (JsonDocument doc = JsonDocument.Parse(rulesJson)) {
+                    JsonElement root = doc.RootElement;
+                    int rows = fallbackRows;
+                    int cols = fallbackCols;
+
+                    if (root.TryGetProperty("GridRows", out JsonElement rowsElement)) {
+                        rows = rowsElement.GetInt32();
+                    }
+
+                    if (root.TryGetProperty("GridCols", out JsonElement colsElement)) {
+                        cols = colsElement.GetInt32();
+                    }
+
+                    return (rows, cols);
+                }
+            } catch {
+                return (fallbackRows, fallbackCols);
+            }
+        }
+    }
+
+    internal class SlotLoadPlan {
+        public int Rows { get; set; }
+        public int Cols { get; set; }
+        public int StartFromSeq { get; set; }
+        public string CheckpointStateJson { get; set; }
+        public List<Move> Moves { get; set; }
+        public int CurrentActionSeq { get; set; }
     }
 
     internal class MatchSessionRow {

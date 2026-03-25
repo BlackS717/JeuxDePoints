@@ -8,8 +8,8 @@ namespace JeuxDePoints {
         /// </summary>
         [STAThread]
         static void Main() {
-            int rows = 20;
-            int cols = 20;
+            int rows = 10;
+            int cols = 10;
             GameState game = new GameState(rows, cols);
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);

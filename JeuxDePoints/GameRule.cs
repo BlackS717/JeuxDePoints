@@ -42,9 +42,9 @@
         public const bool SUCCESSFUL_SHOT_CONSUME_TURN = true; // ok
         public const bool MISSED_SHOT_CONSUME_TURN = true; // ok
 
-        public const bool INFINITE_AMMO = false; // if true, player have limited ammo // ok
+        public const bool INFINITE_AMMO = true; // if true, player have limited ammo // ok
         public const bool CAN_RELOAD_AMMO = false; // if true, player can reload ammo during their turn // ok
-        public const bool RELOADING_USE_TURN = true; // if true, reloading consume the player's turn // ok
+        public const bool RELOADING_USE_TURN = false; // if true, reloading consume the player's turn // ok
         public const bool SUCCESSFUL_SHOT_REFUND_AMMO = false; // if true, player get ammo back if they successfully shoot a point // ok
 
         public const bool SHOT_ANIMATION_ENABLED = true; // ok

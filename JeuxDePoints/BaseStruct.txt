@@ -1,4 +1,4 @@
-﻿psql -h localhost -p 5432 -U postgres -d postgres -c "CREATE DATABASE jeuxdepoints_history;"
+﻿ypsql -h localhost -p 5432 -U postgres -d postgres -c "CREATE DATABASE jeuxdepoints_history;"
 
 psql -h localhost -p 5432 -U postgres -d jeuxdepoints_history -f "c:\Users\Tianiaina\Documents\ITU\S4\Projet\JeuxDePoints\JeuxDePoints\postgresql_history_schema.sql"
 

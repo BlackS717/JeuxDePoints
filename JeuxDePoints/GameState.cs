@@ -134,7 +134,7 @@ namespace JeuxDePoints {
 
             points[index] = value;
 
-            playerScores[currentPlayerId] += lineEngine.DetectLines(row, col, currentPlayerId);
+            playerScores[currentPlayerId] += lineEngine.DetectLines(row, col, currentPlayerId) * GameRule.TOTAL_POINTS_PER_LINE;
 
             // PrintBoardState();
 
@@ -218,10 +218,10 @@ namespace JeuxDePoints {
 
                 if (cellValue == (int)CellState.Player1) {
                     currentPlayerId = 0;
-                    playerScores[0] += lineEngine.DetectLines(pointRow, pointCol, 0);
+                    playerScores[0] += lineEngine.DetectLines(pointRow, pointCol, 0) * GameRule.TOTAL_POINTS_PER_LINE;
                 } else if (cellValue == (int)CellState.Player2) {
                     currentPlayerId = 1;
-                    playerScores[1] += lineEngine.DetectLines(pointRow, pointCol, 1);
+                    playerScores[1] += lineEngine.DetectLines(pointRow, pointCol, 1) * GameRule.TOTAL_POINTS_PER_LINE;
                 }
             }
 
@@ -327,6 +327,37 @@ namespace JeuxDePoints {
             return playerScores[playerId];
         }
 
+        // note: not sure if this method work yet. Need further testing
+        public int GetTheoreticalTotalObtainablePoints() {
+            int lineLength = GameRule.TOTAL_POINTS_IN_LINE;
+            if (lineLength <= 0) {
+                return 0;
+            }
+
+            int horizontalLines = rows * Math.Max(0, cols - lineLength + 1);
+            int verticalLines = cols * Math.Max(0, rows - lineLength + 1);
+            int diagonalDownLines = Math.Max(0, rows - lineLength + 1) * Math.Max(0, cols - lineLength + 1);
+            int diagonalUpLines = diagonalDownLines;
+
+            int maxGeometricLines = horizontalLines + verticalLines + diagonalDownLines + diagonalUpLines;
+
+            // If points cannot be reused across lines, each line consumes distinct points.
+            if (!GameRule.CAN_USE_POINTS_IN_LINES) {
+                int maxByPointBudget = (rows * cols) / lineLength;
+                maxGeometricLines = Math.Min(maxGeometricLines, maxByPointBudget);
+            }
+
+            // If no line crossing is allowed at all, a conservative cap is to keep one axis family.
+            if (!GameRule.CAN_CUT_THROUGH_OWN_LINE && !GameRule.CAN_CUT_THROUGH_OPPONENT_LINE) {
+                int maxSingleFamily = Math.Max(
+                    Math.Max(horizontalLines, verticalLines),
+                    Math.Max(diagonalDownLines, diagonalUpLines));
+                maxGeometricLines = Math.Min(maxGeometricLines, maxSingleFamily);
+            }
+
+            return maxGeometricLines * GameRule.TOTAL_POINTS_PER_LINE;
+        }
+
         public List<Move> GetMoveHistory() {
             return new List<Move>(moves);
         }
@@ -399,6 +430,74 @@ namespace JeuxDePoints {
 
         public Cannon GetPlayerCannon(int playerId) {
             return cannons[playerId];
+        }
+
+        public GameStateSnapshot GetSnapshot() {
+            var lineStates = lines.Select(LineState.FromLine).ToList();
+            var cannonSnapshots = cannons.Select(CannonStateSnapshot.FromCannon).ToList();
+            
+            // Convert pointLines from Dictionary<int, List<Line>> to Dictionary<int, List<LineState>>
+            var pointLineStates = new Dictionary<int, List<LineState>>();
+            foreach (var kvp in pointLines) {
+                pointLineStates[kvp.Key] = kvp.Value.Select(LineState.FromLine).ToList();
+            }
+            
+            return new GameStateSnapshot(
+                rows,
+                cols,
+                points,
+                lineStates,
+                pointLineStates,
+                cannonSnapshots,
+                currentPlayerId,
+                currentTurn,
+                isGameOver,
+                playerScores
+            );
+        }
+
+        public void RestorePoint(int row, int col, int pointValue) {
+            if (IsWithinBounds(row, col)) {
+                int index = GetPointIndex(row, col);
+                points[index] = pointValue;
+            }
+        }
+
+        public void RestoreLine(LineState lineState) {
+            var line = lineState.ToLine();
+            if (!lines.Contains(line)) {
+                lines.Add(line);
+                // Add to pointLines mapping
+                int deltaRow = Math.Sign(line.end[0] - line.start[0]);
+                int deltaCol = Math.Sign(line.end[1] - line.start[1]);
+                int currentRow = line.start[0];
+                int currentCol = line.start[1];
+                for (int i = 0; i < GameRule.TOTAL_POINTS_IN_LINE; i++) {
+                    if (!IsWithinBounds(currentRow, currentCol)) break;
+                    int index = GetPointIndex(currentRow, currentCol);
+                    if (!pointLines.ContainsKey(index)) {
+                        pointLines[index] = new List<Line>();
+                    }
+                    pointLines[index].Add(line);
+                    currentRow += deltaRow;
+                    currentCol += deltaCol;
+                }
+            }
+        }
+
+        public void RestoreCannon(CannonStateSnapshot cannonSnapshot, int cannonIndex) {
+            if (cannonIndex >= 0 && cannonIndex < cannons.Length) {
+                Cannon cannon = new Cannon(cannonSnapshot.PlayerId, cannonSnapshot.YPosition);
+                cannon.SetCurrentAmmo(cannonSnapshot.CurrentAmmo);
+                cannons[cannonIndex] = cannon;
+            }
+        }
+
+        public void RestoreGameState(int playerId, int turn, bool gameOver, int[] scores) {
+            currentPlayerId = playerId;
+            currentTurn = turn;
+            isGameOver = gameOver;
+            Array.Copy(scores, playerScores, Math.Min(scores.Length, playerScores.Length));
         }
 
         public int GetShotTargetCol(int power) {

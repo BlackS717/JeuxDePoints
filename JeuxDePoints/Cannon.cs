@@ -53,6 +53,11 @@ namespace JeuxDePoints {
             currentAmmo = Math.Min(maxAmmo, currentAmmo + amount);
         }
 
+        public void SetCurrentAmmo(int amount) {
+            // Used for restoring state from saved snapshots
+            currentAmmo = Math.Max(0, Math.Min(maxAmmo, amount));
+        }
+
         public bool MoveVertically(int deltaY, int gridHeight) {
             int newYPosition = yPosition + deltaY;
             if (newYPosition < 0 || newYPosition >= gridHeight) {
